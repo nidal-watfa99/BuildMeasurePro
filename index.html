@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1b33">
+<title>BuildMeasure Pro — القياس الهندسي الشامل</title>
+<style>
+:root{--bg:#05070c;--s:#0c1322;--sg:linear-gradient(165deg,#111d35,#0a101d);--s2:#16213a;--tx:#eef3fb;--mu:#8fa0bd;--y:#f5b800;--bl:#4da3ff;--ok:#2fd27f;--er:#ff5a5f;--bd:#1b2a44}
+:root[data-t=l]{--bg:#eef2f8;--s:#fff;--sg:#fff;--s2:#e3eaf5;--tx:#0b1b33;--mu:#4c5f7d;--bd:#c5d1e4;--bl:#1d6fd6}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.65 "IBM Plex Sans Arabic","Noto Kufi Arabic",Tajawal,"Segoe UI",Tahoma,sans-serif;padding-bottom:84px}
+header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:5}
+.logo{width:38px;height:38px;border-radius:12px;border:1px solid var(--y);display:grid;place-items:center;color:var(--y);font-weight:800;font-size:15px;letter-spacing:-1px}
+header h1{font-size:17px;margin:0;flex:1;line-height:1.3}header h1 small{display:block;font-size:12px;color:var(--mu);font-weight:400}
+.pill{background:var(--s);border:1px solid var(--bd);color:var(--tx);width:40px;height:40px;border-radius:12px;font-size:17px}
+main{padding:16px;max-width:760px;margin:auto}
+nav{position:fixed;bottom:0;inset-inline:0;display:flex;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(12px);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;background:none;border:0;color:var(--mu);padding:9px 2px;font:inherit;font-size:11.5px}
+nav button.on{color:var(--y)}.ic{display:block;margin:0 auto 2px;width:24px;height:24px;background:none!important;border:0!important;border-radius:0!important}
+.card{background:var(--sg);border:1px solid var(--bd);border-radius:20px;padding:16px;margin-bottom:14px}
+.card h2{font-size:17px;margin:0 0 10px}
+.eb{display:flex;align-items:center;gap:10px;color:var(--bl);font-size:13.5px;margin-bottom:6px}.eb::before{content:"";width:26px;height:1px;background:var(--bl)}
+.hero{position:relative;overflow:hidden}.hero h2{font-size:30px;line-height:1.3;margin:4px 0 6px}.hero p{color:var(--mu);margin:0 0 4px}
+.hero svg{position:absolute;inset-inline-start:-10px;top:10px;width:150px;opacity:.9;background:none;border:0;pointer-events:none}
+.tile{display:flex;align-items:center;gap:12px;width:100%;background:var(--sg);border:1px solid var(--bd);border-radius:20px;padding:14px;margin-bottom:10px;color:var(--tx);font:inherit;text-align:start}
+.ico{width:48px;height:48px;border-radius:14px;border:1px solid var(--bd);background:var(--bg);display:grid;place-items:center;color:var(--y);flex:none}
+.ico .ic{margin:0}.tt{flex:1}.tt b{display:block;font-size:16px}.tt small{color:var(--mu);font-size:13px}
+.ar2{width:34px;height:34px;border-radius:50%;border:1px solid var(--bd);display:grid;place-items:center;color:var(--mu);flex:none}
+label{display:block;font-size:13px;color:var(--mu);margin:9px 0 4px}
+input,select,textarea{width:100%;padding:12px;background:var(--bg);color:var(--tx);border:1px solid var(--bd);border-radius:12px;font:inherit}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.btn{background:linear-gradient(180deg,#ffd043,#f5b800);color:#111;border:0;border-radius:14px;padding:13px 14px;font:inherit;font-weight:700;width:100%;margin-top:10px}
+.btn.g{background:var(--s2);color:var(--tx)}.btn.d{background:var(--er);color:#fff}.btn:disabled{opacity:.45}
+.btn.sm{width:auto;padding:6px 10px;margin:0;font-size:13px;border-radius:10px}
+.res{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px dashed var(--bd)}
+.res b{color:var(--y);direction:ltr;text-align:end}
+.tag{display:inline-block;font-size:12px;padding:2px 9px;border-radius:20px;background:var(--s2);color:var(--mu)}
+.warn{color:var(--er);font-size:13px}.okc{color:var(--ok);font-size:13px}.note{font-size:12.5px;color:var(--mu)}
+.wall{display:flex;gap:6px;align-items:end;margin-bottom:6px}.wall>div{flex:1}.wall label{margin:0 0 2px}
+#rp svg{width:100%;background:var(--bg);border-radius:12px;border:1px solid var(--bd)}
+canvas{width:100%;border-radius:12px;border:1px solid var(--bd);touch-action:manipulation}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{border:1px solid var(--bd);padding:5px;text-align:start}
+#toast{position:fixed;bottom:96px;inset-inline:20px;background:var(--y);color:#111;padding:10px;border-radius:12px;text-align:center;display:none;z-index:9}
+#ov{position:fixed;inset:0;display:none;color:#fff;font-family:inherit;pointer-events:none}
+#sv{position:absolute;inset:0;width:100%;height:100%;background:transparent;border:0}
+#sv text{paint-order:stroke;stroke:#000;stroke-width:3px;font-size:15px;font-weight:700;direction:ltr}
+#at{position:absolute;top:calc(env(safe-area-inset-top) + 12px);inset-inline:12px;background:rgba(5,7,12,.78);border:1px solid #2a3b5c;border-radius:14px;padding:9px 12px;font-size:14px;text-align:center}
+#ct{position:absolute;bottom:calc(env(safe-area-inset-bottom) + 18px);inset-inline:0;display:flex;justify-content:center;align-items:center;gap:14px;pointer-events:auto}
+#ct button{border:1px solid #2a3b5c;background:rgba(5,7,12,.82);color:#fff;border-radius:16px;padding:12px 14px;font:inherit;font-size:14px}
+#ct #ad{width:74px;height:74px;border-radius:50%;background:#f5b800;color:#111;font-size:34px;font-weight:700;padding:0;border:4px solid rgba(255,255,255,.7)}
+@media print{header,nav,.np,#toast{display:none!important}body{background:#fff;color:#000}.card{border:1px solid #999;background:#fff;color:#000}.res b,.card h2{color:#000}}
+</style>
+</head>
+<body>
+<header><div class="logo">BM</div><h1>BuildMeasure Pro<small id="ap"></small></h1><button class="pill np" onclick="tt()" aria-label="الوضع">◐</button></header>
+<main id="m"></main>
+<nav class="np" id="nv"></nav>
+<div id="toast"></div>
+<div id="ov"><svg id="sv"></svg><div id="at"></div><div id="ct"><button onclick="arUn()">↩ تراجع</button><button id="ad" onclick="arAdd()">＋</button><button onclick="arFin()">✔ إنهاء</button></div></div>
+<script>
+const $=s=>document.querySelector(s),N=(id)=>parseFloat($('#'+id)?.value)||0,F=(n,d=2)=>(Math.round(n*10**d)/10**d).toLocaleString('en',{maximumFractionDigits:d});
+let db={p:[],a:null,t:'d'};
+try{db=JSON.parse(localStorage.getItem('bmp'))||db}catch(e){}
+function sv(){try{localStorage.setItem('bmp',JSON.stringify(db))}catch(e){toast('تعذر الحفظ التلقائي — صدّر نسخة احتياطية')}}
+function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toast.i);toast.i=setTimeout(()=>e.style.display='none',2600)}
+function tt(){db.t=db.t=='l'?'d':'l';sv();ap()}
+function ap(){document.documentElement.dataset.t=db.t;const p=db.p.find(x=>x.id==db.a);$('#ap').textContent=p?'المشروع: '+p.name:'لا يوجد مشروع نشط'}
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+const SRC={ar:['قياس بكاميرا الهاتف (ARCore) — غير مُتحقَّق منه بأداة مرجعية','تقريبي — قارنه بشريط قياس قبل الاعتماد'],man:['قياس يدوي مُدخل من المستخدم','يعتمد على دقة إدخالك'],cal:['تقدير بصورة + مرجع معايرة','تقريبي — يتأثر بالمنظور وزاوية التصوير'],calc:['حساب نظري من أبعاد مدخلة','يعتمد على دقة الأبعاد والافتراضات']};
+function act(){let p=db.p.find(x=>x.id==db.a);if(!p){p=mk('مشروعي الأول');toast('تم إنشاء مشروع افتراضي')}return p}
+function mk(name,loc='',desc=''){const p={id:uid(),name,loc,desc,date:new Date().toISOString().slice(0,10),items:[]};db.p.unshift(p);db.a=p.id;sv();ap();return p}
+function add(type,title,rows,src,extra){const p=act();p.items.unshift({id:uid(),type,title,rows,src,extra:extra||null,date:new Date().toLocaleString('ar')});sv();toast('تم الحفظ في: '+p.name)}
+const R=(l,v)=>`<div class="res"><span>${l}</span><b>${v}</b></div>`;
+const srcTag=k=>`<p class="note">النوع: <span class="tag">${SRC[k][0]}</span> — الثقة: ${SRC[k][1]}</p>`;
+const IP={ar:'<path d="M4 8V5h3M20 8V5h-3M4 16v3h3M20 16v3h-3"/><circle cx="12" cy="12" r="3"/>',room:'<path d="M5 5h9v5h5v9H5z"/>',calc:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 12h2M14 12h2M8 16h2M14 16h2"/>',qty:'<path d="M3 7h18M3 13h18M8 3v4M16 7v6M12 13v6M3 19h18"/>',cal:'<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',proj:'<path d="M3 6h7l2 2h9v11H3z"/>',set:'<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/>',home:'<path d="M4 11l8-7 8 7v9H4z"/>'};
+const ic=n=>`<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${IP[n]}</svg>`;
+const TL=(v,i,t,d)=>`<button class="tile" onclick="go('${v}')"><span class="ico">${ic(i)}</span><span class="tt"><b>${t}</b><small>${d}</small></span><span class="ar2">↖</span></button>`;
+const V={
+home(){const last=db.p.flatMap(q=>q.items.map(i=>({...i,pn:q.name}))).slice(0,4);
+return `<div class="card hero"><svg viewBox="0 0 200 130" fill="none" stroke="#4da3ff" stroke-width="1.2"><polygon points="100,8 180,38 100,68 20,38" fill="rgba(77,163,255,.08)"/><polygon points="100,36 180,66 100,96 20,66" fill="rgba(77,163,255,.14)"/><polygon points="100,64 180,94 100,124 20,94" fill="rgba(245,184,0,.18)" stroke="#f5b800"/></svg>
+<div class="eb">قياس هندسي</div><h2>قِس بكاميرا<br>هاتفك</h2><p>مسافات وارتفاعات ومساحات، تُحفظ مباشرة في مشروعك.</p>
+<button class="btn" onclick="go('ar')">ابدأ القياس بالكاميرا</button></div>
+${TL('room','room','مسح غرفة','أطوال وزوايا، مساحات وجدران وفتحات')}${TL('cal','cal','قياس بصورة مرجعية','تقدير من صورة وبُعد معلوم')}${TL('calc','calc','الأدوات الهندسية','مساحات وأحجام وتحويل وحدات')}${TL('qty','qty','حساب الكميات','خرسانة وبلاط ودهان وحفر')}${TL('proj','proj','المشاريع والتقارير','نسخ احتياطي، CSV وDXF وPDF')}${TL('set','set','الحالة والإعدادات','ما يعمل وما هو قيد البناء')}
+<div class="card"><div class="eb">آخر القياسات</div>${last.length?last.map(i=>`<div class="res"><span>${i.title}<br><small class="note">${i.pn} · ${i.date}</small></span><span class="tag">${SRC[i.src][0].split(' ')[0]}</span></div>`).join(''):'<p class="note">لا توجد قياسات محفوظة بعد.</p>'}</div>
+<p class="note">الإصدار 0.2 — القياس بالكاميرا تجريبي ويحتاج اختبار دقة على جهازك.</p>`},
+ar(){const r=X.res;return `<div class="card"><div class="eb">الواقع المعزز</div><h2>القياس بكاميرا الهاتف</h2><div id="as" class="note">جارٍ فحص دعم الجهاز…</div>
+<label>نوع القياس</label><select id="am"><option value="dist">مسافات (نقاط متتالية)</option><option value="h">ارتفاع (نقطتان)</option><option value="area">مساحة أفقية (أرضية)</option></select>
+<button class="btn" id="ab" disabled onclick="arGo()">ابدأ القياس بالكاميرا</button>
+<p class="note">وجّه الكاميرا لسطح (أرضية أو جدار) وحرّك الهاتف ببطء حتى تظهر الدائرة الخضراء، ثم اضغط ＋ عند كل نقطة. الإضاءة الجيدة والأسطح ذات الملمس تعطي نتائج أفضل. الأسطح اللامعة أو البيضاء الملساء تضعف التتبع.</p></div>
+${r?`<div class="card"><h2>نتيجة آخر قياس</h2>${r.rows.map(x=>R(x[0],x[1])).join('')}${srcTag('ar')}<button class="btn" onclick="add('ar','قياس بالكاميرا: '+X.res.mt,X.res.rows,'ar')">حفظ في المشروع</button>
+<label>للتحقق: القياس الحقيقي بالشريط/الليزر (م)</label><input id="rf" type="number" step="0.001"><button class="btn g" onclick="arAcc()">احسب الخطأ وسجّله</button><div id="ae"></div></div>`:''}`},
+/* ---------- الغرفة ---------- */
+room(){return `<div class="card"><h2>مسح غرفة (يدوي) — يدعم الغرف غير المستطيلة</h2>
+<p class="note">أدخل طول كل جدار والزاوية الداخلية عند نهايته (90° للمستطيل). الجدار الأخير يُغلق الشكل.</p>
+<div id="ws"></div><div class="row"><button class="btn g" onclick="aw()">＋ جدار</button><button class="btn g" onclick="rw()">− حذف الأخير</button></div>
+<div class="row"><div><label>ارتفاع الغرفة (م)</label><input id="rh" type="number" step="0.01" value="${room.h}" oninput="room.h=N('rh');rc()"></div><div><label>اسم الغرفة</label><input id="rn" value="${room.n}" oninput="room.n=this.value"></div></div>
+<label>الفتحات (أبواب/نوافذ)</label><div id="os"></div><div class="row"><button class="btn g" onclick="ao('باب',0.9,2.1)">＋ باب</button><button class="btn g" onclick="ao('نافذة',1.2,1.2)">＋ نافذة</button></div>
+<label><input type="checkbox" id="ded" checked onchange="rc()" style="width:auto"> خصم الفتحات من مساحة الجدران</label></div>
+<div class="card"><h2>النتائج</h2><div id="rr"></div></div><div class="card"><h2>المخطط ثنائي الأبعاد</h2><div id="rp"></div></div>`},
+calc(){return `<div class="card"><h2>مساحات وأحجام</h2>
+<select id="sh" onchange="sc()"><option value="rect">مستطيل / مربع</option><option value="tri">مثلث (قاعدة × ارتفاع)</option><option value="cir">دائرة</option><option value="poly">مضلع (إحداثيات x,y)</option><option value="box">متوازي مستطيلات (حجم)</option><option value="cyl">أسطوانة (حجم)</option><option value="cone">مخروط (حجم)</option><option value="slope">سطح مائل: فعلي مقابل مسقط</option></select>
+<div id="si"></div><div id="so"></div></div>
+<div class="card"><h2>تحويل الوحدات</h2><div class="row"><input id="cv" type="number" value="1" oninput="cc()"><select id="cu" onchange="cc()"><option value="1">م</option><option value="0.01">سم</option><option value="0.001">مم</option><option value="0.3048">قدم</option><option value="0.0254">بوصة</option></select></div><div id="co"></div>
+<div class="row" style="margin-top:8px"><input id="ca" type="number" value="1" oninput="cc()"><select id="cb" onchange="cc()"><option value="1">م²</option><option value="0.09290304">قدم²</option></select></div><div id="cp"></div>
+<div class="row" style="margin-top:8px"><input id="cvv" type="number" value="1" oninput="cc()"><select id="cw" onchange="cc()"><option value="1">م³</option><option value="0.001">لتر</option></select></div><div id="cx"></div></div>`},
+qty(){return `<div class="card"><h2>حساب الكميات</h2><select id="qt" onchange="sq()"><option value="con">خرسانة (حجم نظري)</option><option value="tile">بلاط / أرضيات</option><option value="pnt">دهان / لياسة</option><option value="exc">حفر / ردم</option></select><div id="qi"></div><div id="qo"></div></div>`},
+cal(){return `<div class="card"><h2>قياس بصورة مرجعية معلومة البُعد</h2>
+<p class="note">1) اختر صورة لسطح مستوٍ مصوّر بشكل مواجه (مثلاً جدار). 2) انقر على طرفي بُعد تعرف طوله. 3) أدخل طوله. 4) انقر على أي نقطتين لقياس مسافة على نفس المستوى فقط.</p>
+<input type="file" id="fi" accept="image/*" onchange="li(this)"><canvas id="cv2" width="640" height="440" style="margin-top:8px;display:none" onclick="cl(event)"></canvas>
+<div id="cs" class="note"></div><div class="row"><div><label>الطول المعروف (م)</label><input id="kn" type="number" step="0.001" value="1"></div><button class="btn g" style="margin-top:26px" onclick="cz()">إعادة</button></div><div id="cr"></div></div>`},
+proj(){return `<div class="card"><h2>مشروع جديد</h2><input id="pn" placeholder="اسم المشروع"><input id="pl" placeholder="الموقع" style="margin-top:6px"><input id="pd" placeholder="وصف" style="margin-top:6px"><button class="btn" onclick="np()">إنشاء</button></div>
+${db.p.map(p=>`<div class="card" style="${p.id==db.a?'border-color:var(--y)':''}"><h2>${p.name} ${p.id==db.a?'✔':''}</h2><p class="note">${p.loc||''} ${p.desc||''} · ${p.date} · ${p.items.length} قياس</p>
+<div class="row"><button class="btn sm g" onclick="db.a='${p.id}';sv();go('proj')">تنشيط</button><button class="btn sm g" onclick="rp('${p.id}')">تقرير</button><button class="btn sm g" onclick="csv('${p.id}')">CSV</button><button class="btn sm g" onclick="cp2('${p.id}')">نسخ</button><button class="btn sm d" onclick="dp('${p.id}')">حذف</button></div>
+${p.items.map(i=>`<div class="res"><span>${i.title}<br><small class="note">${i.date}</small></span><span>${i.extra&&i.extra.pts?`<button class="btn sm g" onclick="dxf('${p.id}','${i.id}')">DXF</button> `:''}<button class="btn sm d" onclick="di('${p.id}','${i.id}')">✕</button></span></div>`).join('')}</div>`).join('')||'<p class="note">لا توجد مشاريع.</p>'}
+<div class="card"><h2>نسخ احتياطي</h2><button class="btn g" onclick="bk()">تنزيل نسخة احتياطية (JSON)</button><label>استعادة من ملف</label><input type="file" accept=".json" onchange="rs(this)"></div>`},
+set(){return `<div class="card"><h2>حالة الميزات في هذه النسخة</h2>
+${[['حاسبة هندسية وتحويل وحدات','ok'],['مسح غرفة يدوي + مخطط 2D + خصم الفتحات','ok'],['حساب الكميات','ok'],['إدارة مشاريع محلية + نسخ احتياطي','ok'],['تقرير (طباعة / حفظ PDF) + CSV + DXF للغرف','ok'],['قياس بصورة مرجعية (تقديري)','ok'],['قياس بالكاميرا الحية AR / ARCore / ARKit','no'],['مسح LiDAR وأجسام 3D وتصدير OBJ/PLY','no']].map(([t,s])=>`<div class="res"><span>${t}</span><span class="${s=='ok'?'okc':'warn'}">${s=='ok'?'يعمل':'غير متاح بعد'}</span></div>`).join('')}
+<p class="note">لم تُجرَ اختبارات دقة ميدانية بعد. لا تعتمد النتائج في أعمال إنشائية حساسة دون التحقق بأداة مرجعية. البيانات محفوظة في هذا المتصفح فقط ولا تُرسل لأي جهة.</p></div>
+<div class="card"><h2>الوحدة الافتراضية للعرض</h2><p class="note">النتائج بالمتر والمتر المربع والمتر المكعب. التحويل متاح في الأدوات الهندسية.</p></div>`}
+};
+const TABS=[['home','home','الرئيسية'],['ar','ar','قياس'],['room','room','غرفة'],['calc','calc','أدوات'],['qty','qty','كميات'],['proj','proj','مشاريع']];
+function go(v){cur=v;$('#m').innerHTML=V[v]();$('#nv').innerHTML=TABS.map(t=>`<button class="${t[0]==v?'on':''}" onclick="go('${t[0]}')">${ic(t[1])}${t[2]}</button>`).join('');window.scrollTo(0,0);
+({room:()=>{rw2();rc()},calc:()=>{sc();cc()},qty:sq,ar:arChk,cal:()=>{}})[v]?.()}
+let cur='home';
+/* ---------- غرفة ---------- */
+let room={n:'غرفة 1',h:2.8,w:[{l:4.5,a:90},{l:3.2,a:90},{l:4.5,a:90},{l:3.2,a:90}],o:[{t:'باب',w:0.9,h:2.1,n:1},{t:'نافذة',w:1.2,h:1.2,n:1}]};
+function rw2(){$('#ws').innerHTML=room.w.map((w,i)=>`<div class="wall"><div><label>جدار ${i+1} (م)</label><input type="number" step="0.01" value="${w.l}" oninput="room.w[${i}].l=+this.value;rc()"></div><div><label>الزاوية °</label><input type="number" value="${w.a}" oninput="room.w[${i}].a=+this.value;rc()"></div></div>`).join('');
+$('#os').innerHTML=room.o.map((o,i)=>`<div class="wall"><div><label>${o.t} عرض</label><input type="number" step="0.01" value="${o.w}" oninput="room.o[${i}].w=+this.value;rc()"></div><div><label>ارتفاع</label><input type="number" step="0.01" value="${o.h}" oninput="room.o[${i}].h=+this.value;rc()"></div><div><label>عدد</label><input type="number" value="${o.n}" oninput="room.o[${i}].n=+this.value;rc()"></div><button class="btn sm d" onclick="room.o.splice(${i},1);rw2();rc()">✕</button></div>`).join('')}
+function aw(){room.w.push({l:3,a:90});rw2();rc()}function rw(){if(room.w.length>3)room.w.pop();rw2();rc()}
+function ao(t,w,h){room.o.push({t,w,h,n:1});rw2();rc()}
+function geo(){let x=0,y=0,h=0,pts=[[0,0]];room.w.forEach(w=>{x+=w.l*Math.cos(h);y+=w.l*Math.sin(h);pts.push([x,y]);h+=Math.PI-w.a*Math.PI/180});
+const clo=Math.hypot(x,y);pts.pop();let a=0;pts.forEach((p,i)=>{const q=pts[(i+1)%pts.length];a+=p[0]*q[1]-q[0]*p[1]});return{pts,clo,area:Math.abs(a/2),per:room.w.reduce((s,w)=>s+w.l,0)}}
+function rc(){const g=geo(),gross=g.per*room.h,op=room.o.reduce((s,o)=>s+o.w*o.h*o.n,0),ded=$('#ded')?.checked,net=gross-(ded?op:0);
+room.res=[['اسم الغرفة',room.n],['عدد الأضلاع',room.w.length],['المحيط (م)',F(g.per)],['مساحة الأرضية (م²)',F(g.area)],['مساحة السقف (م²)',F(g.area)],['مساحة الجدران الإجمالية (م²)',F(gross)],['مساحة الفتحات (م²)',F(op)],['صافي مساحة الجدران (م²)',F(net)],['المساحة الكلية (أرضية+سقف+جدران صافية)',F(g.area*2+net)],['حجم الغرفة (م³)',F(g.area*room.h)]];
+const bad=g.clo/g.per>0.01;
+$('#rr').innerHTML=room.res.map(r=>R(...r)).join('')+(bad?`<p class="warn">⚠ الشكل لا يُغلق: فرق ${F(g.clo)} م. راجع الأطوال والزوايا — المساحة غير مؤكدة.</p>`:'<p class="okc">✔ الشكل مغلق هندسياً</p>')+srcTag('man')+'<button class="btn" onclick="srm()">حفظ في المشروع</button><button class="btn g" onclick="exm()">تصدير DXF</button>';
+room.g=g;room.bad=bad;
+const xs=g.pts.map(p=>p[0]),ys=g.pts.map(p=>p[1]),mx=Math.min(...xs),Mx=Math.max(...xs),my=Math.min(...ys),My=Math.max(...ys),s=Math.min(260/((Mx-mx)||1),180/((My-my)||1)),T=p=>[20+(p[0]-mx)*s,20+(My-p[1])*s];
+$('#rp').innerHTML=`<svg viewBox="0 0 300 220"><polygon points="${g.pts.map(p=>T(p).join(',')).join(' ')}" fill="rgba(245,184,0,.15)" stroke="#f5b800" stroke-width="2"/>${g.pts.map((p,i)=>{const q=g.pts[(i+1)%g.pts.length],a=T(p),b=T(q);return `<text x="${(a[0]+b[0])/2}" y="${(a[1]+b[1])/2-4}" font-size="10" fill="currentColor" text-anchor="middle">${F(room.w[i].l)}</text>`}).join('')}</svg>`}
+function srm(){add('room','غرفة: '+room.n,room.res,'man',{pts:room.g.pts,bad:room.bad})}
+function exm(){dl(room.n+'.dxf',mkdxf(room.g.pts),'application/dxf')}
+function mkdxf(pts){return `0\nSECTION\n2\nENTITIES\n0\nLWPOLYLINE\n8\n0\n90\n${pts.length}\n70\n1\n`+pts.map(p=>`10\n${p[0].toFixed(4)}\n20\n${p[1].toFixed(4)}\n`).join('')+`0\nENDSEC\n0\nEOF\n`}
+function dxf(pid,iid){const i=db.p.find(p=>p.id==pid).items.find(i=>i.id==iid);dl(i.title+'.dxf',mkdxf(i.extra.pts),'application/dxf')}
+/* ---------- أدوات ---------- */
+const SH={rect:[['الطول (م)','a'],['العرض (م)','b']],tri:[['القاعدة (م)','a'],['الارتفاع (م)','b']],cir:[['نصف القطر (م)','a']],box:[['الطول','a'],['العرض','b'],['الارتفاع','c']],cyl:[['نصف القطر','a'],['الارتفاع','b']],cone:[['نصف القطر','a'],['الارتفاع','b']],slope:[['المساحة المسقطة أفقياً (م²)','a'],['زاوية الميل (°)','b']],poly:[]};
+function sc(){const k=$('#sh').value;$('#si').innerHTML=k=='poly'?'<label>نقاط، كل سطر: x,y (متر) بالترتيب</label><textarea id="pp" rows="5" oninput="cs2()">0,0\n6,0\n6,3\n3,5\n0,3</textarea>':SH[k].map(f=>`<label>${f[0]}</label><input id="${f[1]}" type="number" step="any" oninput="cs2()">`).join('');cs2()}
+function cs2(){const k=$('#sh').value,a=N('a'),b=N('b'),c=N('c');let r=[],f='';
+if(k=='rect'){r=[['المساحة (م²)',a*b],['المحيط (م)',2*(a+b)]];f='ط × ع'}
+if(k=='tri'){r=[['المساحة (م²)',a*b/2]];f='½ × ق × ع'}
+if(k=='cir'){r=[['المساحة (م²)',Math.PI*a*a],['المحيط (م)',2*Math.PI*a]];f='π × نق²'}
+if(k=='box'){r=[['الحجم (م³)',a*b*c],['المساحة السطحية (م²)',2*(a*b+b*c+a*c)]];f='ط × ع × ارتفاع'}
+if(k=='cyl'){r=[['الحجم (م³)',Math.PI*a*a*b]];f='π × نق² × ع'}
+if(k=='cone'){r=[['الحجم (م³)',Math.PI*a*a*b/3]];f='⅓ × π × نق² × ع'}
+if(k=='slope'){const cs=Math.cos(b*Math.PI/180);r=cs>0.01&&b>=0&&b<89?[['المساحة المسقطة (م²)',a],['المساحة الفعلية للسطح المائل (م²)',a/cs],['معامل الميل',1/cs]]:[['خطأ','زاوية غير صالحة']];f='فعلية = مسقطة ÷ cos(الزاوية)'}
+if(k=='poly'){const P=($('#pp').value||'').split('\n').map(l=>l.split(',').map(Number)).filter(p=>p.length==2&&p.every(isFinite));let s=0,pr=0;P.forEach((p,i)=>{const q=P[(i+1)%P.length];s+=p[0]*q[1]-q[0]*p[1];pr+=Math.hypot(q[0]-p[0],q[1]-p[1])});r=P.length>2?[['المساحة (م²)',Math.abs(s/2)],['المحيط (م)',pr]]:[['','أدخل 3 نقاط على الأقل']];f='صيغة المضلع (Shoelace)'}
+cs2.r=r.map(x=>[x[0],typeof x[1]=='number'?F(x[1]):x[1]]);cs2.f=f;
+$('#so').innerHTML=cs2.r.map(x=>R(...x)).join('')+`<p class="note">المعادلة: ${f}</p>`+srcTag('calc')+'<button class="btn g" onclick="add(\'calc\',$(\'#sh\').selectedOptions[0].text,cs2.r.concat([[\'المعادلة\',cs2.f]]),\'calc\')">حفظ في المشروع</button>'}
+function cc(){const v=N('cv'),u=+$('#cu').value,m=v*u;$('#co').innerHTML=[['م',1],['سم',.01],['مم',.001],['قدم',.3048],['بوصة',.0254]].map(x=>R(x[0],F(m/x[1],4))).join('');
+const a=N('ca')*+$('#cb').value;$('#cp').innerHTML=R('م²',F(a,4))+R('قدم²',F(a/0.09290304,4));const w=N('cvv')*+$('#cw').value;$('#cx').innerHTML=R('م³',F(w,4))+R('لتر',F(w*1000,2))}
+/* ---------- كميات ---------- */
+const IN=(id,l,v)=>`<label>${l}</label><input id="${id}" type="number" step="any" ${v!=null?`value="${v}"`:''} oninput="cq()">`;
+function sq(){const k=$('#qt').value;$('#qi').innerHTML={
+con:IN('x1','الطول (م)')+IN('x2','العرض (م)')+IN('x3','السماكة/الارتفاع (م)')+IN('x4','العدد',1)+IN('w','نسبة الهدر %',5)+IN('pr','سعر م³ (تدخله أنت)'),
+tile:IN('x1','مساحة السطح (م²)')+IN('x2','عرض البلاطة (سم)')+IN('x3','طول البلاطة (سم)')+IN('x5','عدد البلاطات في العلبة (اختياري)')+IN('w','نسبة الهدر %',10)+IN('pr','سعر م² أو سعر القطعة (تدخله أنت)'),
+pnt:IN('x1','مساحة السطح (م²)')+IN('x2','عدد الطبقات',2)+IN('x3','معدل تغطية المنتج م²/لتر (من علبة المنتج)')+IN('w','نسبة الهدر %',10)+IN('pr','سعر اللتر (تدخله أنت)'),
+exc:IN('x1','الطول (م)')+IN('x2','العرض (م)')+IN('x3','العمق (م)')+IN('x4','نسبة تمدد التربة % (تدخلها أنت، اختياري)',0)+IN('pr','سعر م³ (تدخله أنت)')}[k];cq()}
+function cq(){const k=$('#qt').value,x1=N('x1'),x2=N('x2'),x3=N('x3'),x4=N('x4'),x5=N('x5'),w=1+N('w')/100,pr=N('pr');let r=[],f='';
+if(k=='con'){const v=x1*x2*x3*(x4||1);r=[['الحجم النظري (م³)',v],['الحجم مع الهدر (م³)',v*w]];f='ط × ع × س × العدد × (1+هدر)';if(pr)r.push(['التكلفة',v*w*pr])}
+if(k=='tile'){const t=x2*x3/10000;if(t>0){const n=x1/t;r=[['مساحة البلاطة (م²)',t],['العدد النظري',Math.ceil(n)],['العدد مع الهدر',Math.ceil(n*w)]];if(x5)r.push(['عدد العلب',Math.ceil(n*w/x5)]);f='العدد = المساحة ÷ مساحة البلاطة × (1+هدر)';if(pr)r.push(['التكلفة (سعر م² × المساحة مع الهدر)',x1*w*pr])}}
+if(k=='pnt'){if(x3>0){const l=x1*x2/x3;r=[['الكمية النظرية (لتر)',l],['الكمية مع الهدر (لتر)',l*w]];f='لتر = المساحة × الطبقات ÷ التغطية × (1+هدر)';if(pr)r.push(['التكلفة',l*w*pr])}}
+if(k=='exc'){const v=x1*x2*x3;r=[['حجم الحفر النظري في الموقع (م³)',v]];if(x4)r.push(['حجم التربة بعد التمدد (م³)',v*(1+x4/100)]);f='ط × ع × عمق (النظري لا يشمل التمدد/الانكماش إلا بنسبة تدخلها)';if(pr)r.push(['التكلفة',v*(x4?1+x4/100:1)*pr])}
+cq.r=r.map(a=>[a[0],typeof a[1]=='number'?F(a[1]):a[1]]);cq.f=f;
+$('#qo').innerHTML=(cq.r.length?cq.r.map(a=>R(...a)).join('')+`<p class="note">المعادلة: ${f}</p>`+srcTag('calc')+'<button class="btn" onclick="add(\'qty\',$(\'#qt\').selectedOptions[0].text,cq.r.concat([[\'المعادلة\',cq.f]]),\'calc\')">حفظ في المشروع</button>':'<p class="note">أدخل الأبعاد لإظهار النتيجة. لا تُستخدم كثافات أو أسعار افتراضية.</p>')}
+/* ---------- معايرة بصورة ---------- */
+let C={img:null,ref:[],mp:[],sc:0,res:[]};
+function li(inp){const f=inp.files[0];if(!f)return;const im=new Image();im.onload=()=>{C.img=im;const c=$('#cv2');c.style.display='block';c.width=im.width>900?900:im.width;c.height=im.height*c.width/im.width;cz();URL.revokeObjectURL(im.src)};im.src=URL.createObjectURL(f)}
+function cz(){C.ref=[];C.mp=[];C.sc=0;C.res=[];cd();$('#cs').textContent=C.img?'انقر طرفي البُعد المعروف.':'';$('#cr').innerHTML=''}
+function cd(){const c=$('#cv2'),x=c.getContext('2d');if(!C.img)return;x.drawImage(C.img,0,0,c.width,c.height);const dr=(a,col)=>{if(a.length==2){x.strokeStyle=col;x.lineWidth=3;x.beginPath();x.moveTo(...a[0]);x.lineTo(...a[1]);x.stroke()}a.forEach(p=>{x.fillStyle=col;x.beginPath();x.arc(p[0],p[1],5,0,7);x.fill()})};dr(C.ref,'#f5b800');C.res.forEach(r=>dr(r.p,'#2fbf71'));dr(C.mp,'#2fbf71')}
+function cl(e){const c=$('#cv2'),b=c.getBoundingClientRect(),p=[(e.clientX-b.left)*c.width/b.width,(e.clientY-b.top)*c.height/b.height];
+if(C.ref.length<2){C.ref.push(p);if(C.ref.length==2){const k=N('kn'),d=Math.hypot(C.ref[1][0]-C.ref[0][0],C.ref[1][1]-C.ref[0][1]);if(k<=0||d<5){C.ref=[];toast('أدخل طولاً معروفاً صحيحاً أولاً');cd();return}C.sc=k/d;$('#cs').textContent='تمت المعايرة. انقر نقطتين لقياس مسافة على نفس المستوى.'}}
+else{C.mp.push(p);if(C.mp.length==2){const m=Math.hypot(C.mp[1][0]-C.mp[0][0],C.mp[1][1]-C.mp[0][1])*C.sc;C.res.push({p:C.mp,m});C.mp=[];$('#cr').innerHTML=C.res.map((r,i)=>R('قياس '+(i+1)+' (م)',F(r.m,3))).join('')+srcTag('cal')+'<p class="warn">القياس صالح فقط للأجسام على نفس مستوى المرجع وبتصوير مواجه. لا يُعتمد في أعمال دقيقة.</p><button class="btn" onclick="add(\'cal\',\'قياس بصورة مرجعية\',C.res.map((r,i)=>[\'قياس \'+(i+1)+\' (م)\',F(r.m,3)]).concat([[\'المرجع المعروف (م)\',$(\'#kn\').value]]),\'cal\')">حفظ في المشروع</button>'}}cd()}
+/* ---------- مشاريع / تصدير ---------- */
+function np(){const n=$('#pn').value.trim();if(!n){toast('أدخل اسم المشروع');return}mk(n,$('#pl').value,$('#pd').value);go('proj')}
+function dp(id){if(confirm('حذف المشروع وكل بياناته نهائياً؟')){db.p=db.p.filter(p=>p.id!=id);if(db.a==id)db.a=null;sv();ap();go('proj')}}
+function di(p,i){if(confirm('حذف هذا القياس؟')){const q=db.p.find(x=>x.id==p);q.items=q.items.filter(x=>x.id!=i);sv();go('proj')}}
+function cp2(id){const p=JSON.parse(JSON.stringify(db.p.find(x=>x.id==id)));p.id=uid();p.name+=' (نسخة)';db.p.unshift(p);sv();go('proj')}
+function dl(n,t,m){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:m}));a.download=n;document.body.appendChild(a);a.click();a.remove();toast('تم التنزيل: '+n)}
+function csv(id){const p=db.p.find(x=>x.id==id);let s='\ufeffالمشروع,القياس,البند,القيمة,النوع,التاريخ\n';p.items.forEach(i=>i.rows.forEach(r=>s+=[p.name,i.title,r[0],r[1],SRC[i.src][0],i.date].map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')+'\n'));dl(p.name+'.csv',s,'text/csv')}
+function bk(){dl('BuildMeasure-backup-'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify(db),'application/json')}
+function rs(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d.p))throw 0;if(confirm('سيتم استبدال البيانات الحالية. متابعة؟')){db=d;sv();ap();go('proj')}}catch(e){toast('ملف غير صالح')}};r.readAsText(f)}
+function rp(id){const p=db.p.find(x=>x.id==id);$('#m').innerHTML=`<div class="card"><h2>تقرير: ${p.name}</h2><p>الموقع: ${p.loc||'—'} · التاريخ: ${p.date}<br>${p.desc||''}</p></div>`+p.items.map(i=>`<div class="card"><h2>${i.title}</h2><p class="note">${i.date}</p><table>${i.rows.map(r=>`<tr><td>${r[0]}</td><td dir="ltr">${r[1]}</td></tr>`).join('')}</table>${srcTag(i.src)}</div>`).join('')+'<p class="note">أُعدّ بواسطة BuildMeasure Pro — أداة مساعدة، لا تغني عن القياس المعتمد في الأعمال الإنشائية الحساسة.</p><button class="btn np" onclick="print()">طباعة / حفظ PDF</button><button class="btn g np" onclick="go(\'proj\')">رجوع</button>'}
+
+/* ---------- القياس بالكاميرا (WebXR) ---------- */
+let X={s:null,hit:null,rs:null,pts:[],pos:null,last:0,mode:'dist',res:null};
+async function arChk(){const e=$('#as');if(!e)return;if(!navigator.xr){e.innerHTML='<span class="warn">المتصفح لا يدعم WebXR. افتح الصفحة عبر رابط https في Chrome على Android (لا يعمل من ملف محلي).</span>';return}
+try{const ok=await navigator.xr.isSessionSupported('immersive-ar');e.innerHTML=ok?'<span class="okc">✔ الجهاز يدعم القياس بالواقع المعزز</span>':'<span class="warn">غير مدعوم. تأكد من تثبيت «Google Play Services for AR» وأن هاتفك يدعم ARCore.</span>';$('#ab').disabled=!ok}catch(x){e.innerHTML='<span class="warn">تعذر الفحص: '+x.message+'</span>'}}
+async function arGo(){X.mode=$('#am').value;X.pts=[];X.pos=null;X.res=null;$('#ov').style.display='block';
+try{const s=await navigator.xr.requestSession('immersive-ar',{requiredFeatures:['hit-test'],optionalFeatures:['dom-overlay'],domOverlay:{root:$('#ov')}});
+const gl=document.createElement('canvas').getContext('webgl',{xrCompatible:true,alpha:true});await gl.makeXRCompatible();s.updateRenderState({baseLayer:new XRWebGLLayer(s,gl)});
+X.gl=gl;X.rs=await s.requestReferenceSpace('local');X.hit=await s.requestHitTestSource({space:await s.requestReferenceSpace('viewer')});X.s=s;X.last=performance.now();
+s.addEventListener('end',arEnd);s.requestAnimationFrame(arFr)}catch(e){$('#ov').style.display='none';toast('تعذر بدء الكاميرا: '+e.message)}}
+function mm(m,p){return[0,1,2,3].map(i=>m[i]*p[0]+m[4+i]*p[1]+m[8+i]*p[2]+m[12+i])}
+function arFr(t,f){X.s.requestAnimationFrame(arFr);const gl=X.gl,l=X.s.renderState.baseLayer;gl.bindFramebuffer(gl.FRAMEBUFFER,l.framebuffer);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+const po=f.getViewerPose(X.rs);if(!po){X.pos=null;$('#at').textContent='فُقد التتبع — حرّك الهاتف ببطء';return}
+const v=po.views[0],h=f.getHitTestResults(X.hit);if(h.length){const q=h[0].getPose(X.rs).transform.position;X.pos=[q.x,q.y,q.z];X.last=t}else if(t-X.last>500)X.pos=null;
+const W=innerWidth,H=innerHeight,pr=p=>{const c=mm(v.projectionMatrix,mm(v.transform.inverse.matrix,p));if(c[3]<=0)return null;return[(c[0]/c[3]*.5+.5)*W,(1-(c[1]/c[3]*.5+.5))*H]};
+const P=X.pts.map(p=>({p,s:pr(p)})),o=[];
+for(let i=0;i<P.length;i++){const a=P[i].s;if(!a)continue;if(i>0&&P[i-1].s){const b=P[i-1].s;o.push(`<line x1="${b[0]}" y1="${b[1]}" x2="${a[0]}" y2="${a[1]}" stroke="#2fd27f" stroke-width="3"/>`);o.push(`<text x="${(a[0]+b[0])/2}" y="${(a[1]+b[1])/2-8}" text-anchor="middle" fill="#fff">${F(d3(P[i].p,P[i-1].p),3)} م</text>`)}o.push(`<circle cx="${a[0]}" cy="${a[1]}" r="7" fill="#f5b800" stroke="#000"/>`)}
+if(X.mode=='area'&&P.length>2&&P[0].s&&P[P.length-1].s)o.push(`<line x1="${P[0].s[0]}" y1="${P[0].s[1]}" x2="${P[P.length-1].s[0]}" y2="${P[P.length-1].s[1]}" stroke="#2fd27f" stroke-dasharray="6 6" stroke-width="2"/>`);
+if(X.pos){const r=pr(X.pos);if(r){o.push(`<circle cx="${r[0]}" cy="${r[1]}" r="20" fill="none" stroke="#2fd27f" stroke-width="3"/><circle cx="${r[0]}" cy="${r[1]}" r="3" fill="#2fd27f"/>`);const L=P.length&&P[P.length-1].s;if(L)o.push(`<line x1="${L[0]}" y1="${L[1]}" x2="${r[0]}" y2="${r[1]}" stroke="#f5b800" stroke-width="2" stroke-dasharray="5 5"/>`)}}
+$('#sv').innerHTML=o.join('');$('#at').textContent=(X.pos?'● تتبع جيد — اضغط ＋ لتثبيت نقطة':'وجّه الكاميرا نحو سطح وحرّك ببطء')+' · '+arTxt()}
+const d3=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]);
+function arTxt(){const c=arCalc();return c?c.mt+': '+c.rows[0][1]:'النقاط: '+X.pts.length}
+function arAdd(){if(!X.pos)return;if(X.mode=='h'&&X.pts.length>=2)X.pts=[];X.pts.push(X.pos.slice())}
+function arUn(){X.pts.pop()}
+function arFin(){X.s&&X.s.end()}
+function arCalc(){const p=X.pts,dv=navigator.userAgent.match(/\(([^)]+)\)/);const dev=['الجهاز',dv?dv[1]:'—'];
+if(X.mode=='dist'&&p.length>1){let t=0;for(let i=1;i<p.length;i++)t+=d3(p[i],p[i-1]);return{mt:'مسافة',main:t,rows:[['المسافة الكلية (م)',F(t,3)],['عدد النقاط',p.length],['الطريقة','ARCore hit-test على سطح مكتشف'],dev]}}
+if(X.mode=='h'&&p.length==2){const a=Math.abs(p[0][1]-p[1][1]);return{mt:'ارتفاع',main:a,rows:[['الفرق الرأسي (م)',F(a,3)],['المسافة المباشرة (م)',F(d3(p[0],p[1]),3)],['الطريقة','ARCore hit-test'],dev]}}
+if(X.mode=='area'&&p.length>2){let a=0,pm=0;p.forEach((q,i)=>{const n=p[(i+1)%p.length];a+=q[0]*n[2]-n[0]*q[2];pm+=d3(q,n)});a=Math.abs(a/2);return{mt:'مساحة أفقية',main:a,rows:[['المساحة المسقطة أفقياً (م²)',F(a,3)],['المحيط (م)',F(pm,3)],['ملاحظة','تُحسب على المستوى الأفقي فقط — لا تصلح لجدار أو سطح مائل'],dev]}}return null}
+function arEnd(){X.res=arCalc();X.s=null;$('#ov').style.display='none';$('#sv').innerHTML='';go('ar');if(!X.res)toast('لم تُسجَّل نقاط كافية')}
+function arAcc(){const rf=N('rf');if(rf<=0||!X.res){toast('أدخل القياس الحقيقي');return}const e=Math.abs(X.res.main-rf),pc=e/rf*100;const rows=[['قياس الهاتف',F(X.res.main,3)],['القياس المرجعي',F(rf,3)],['الخطأ المطلق',F(e,3)],['الخطأ النسبي %',F(pc,2)]];$('#ae').innerHTML=rows.map(x=>R(...x)).join('');add('acc','اختبار دقة: '+X.res.mt,rows,'ar')}
+ap();go('home');
+</script>
+</body>
+</html>
