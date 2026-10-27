@@ -1,0 +1,10 @@
+{
+  "name": "BuildMeasure Pro — القياس الهندسي الشامل",
+  "description": "تطبيق هندسي متكامل لقياس الأطوال والمساحات والأحجام ومسح الغرف وحساب كميات البناء والتشطيبات والمقاولات.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
