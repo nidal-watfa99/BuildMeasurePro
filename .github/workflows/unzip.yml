@@ -1,0 +1,33 @@
+name: Unzip project
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "*.zip"
+
+permissions:
+  contents: write
+
+jobs:
+  unzip:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Unzip and clean up
+        run: |
+          set -e
+          ZIP=$(ls *.zip | head -n 1)
+          echo "Extracting: $ZIP"
+          unzip -o "$ZIP" -x "__MACOSX/*"
+          rm -f "$ZIP"
+
+      - name: Commit extracted files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "Unzip BuildMeasurePro project"
+          git push
