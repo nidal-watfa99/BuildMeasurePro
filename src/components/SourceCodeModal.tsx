@@ -175,7 +175,7 @@ export const SourceCodeModal: React.FC<SourceCodeModalProps> = ({ isOpen, onClos
                   <span>المكونات المصدرية (src/)</span>
                 </div>
                 <p className="text-[11px] text-slate-400 leading-relaxed">
-                  تشمل كاميرا القياس بالليزر التلقائي، ماسح الغرف 2D/3D مع Three.js، حاسبة الـ BOQ، المكتبة الهندسية، محركات التصدير لـ DXF وOBJ وPDF.
+                  تشمل كاميرا القياس الذكية (مؤشر رقمي + مستشعرات)، ماسح الغرف 2D/3D مع Three.js، حاسبة الـ BOQ، المكتبة الهندسية، محركات التصدير لـ DXF وOBJ وPDF.
                 </p>
               </div>
 

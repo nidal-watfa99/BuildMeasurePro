@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Project, Measurement } from '../types';
 import { StorageService } from '../services/storage';
-import { exportToCSV, generateEngineeringPDF } from '../utils/exportUtils';
+import { exportToCSV, exportToXLSX, generateEngineeringPDF } from '../utils/exportUtils';
 import { 
   FolderKanban, 
   Plus, 
@@ -66,9 +66,36 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
 
   // تصدير نسخة احتياطية
   const handleExportBackup = () => {
-    StorageService.exportFullBackup();
-    setBackupStatus('تم تصدير النسخة الاحتياطية بنجاح إلى ملف JSON!');
-    setTimeout(() => setBackupStatus(null), 3500);
+    try {
+      StorageService.exportFullBackup();
+      setBackupStatus('تم تصدير النسخة الاحتياطية بنجاح إلى ملف JSON!');
+    } catch (e) {
+      setBackupStatus('تعذّر تصدير النسخة الاحتياطية: ' + (e instanceof Error ? e.message : 'خطأ غير معروف'));
+    }
+    setTimeout(() => setBackupStatus(null), 4500);
+  };
+
+  const runExport = async (fn: () => void | Promise<void>, label: string) => {
+    try {
+      await fn();
+      setBackupStatus(`تم إنشاء ${label}`);
+    } catch (e) {
+      console.error(e);
+      setBackupStatus(`فشل إنشاء ${label}: ` + (e instanceof Error ? e.message : 'خطأ غير معروف'));
+    }
+    setTimeout(() => setBackupStatus(null), 4500);
+  };
+
+  const handleRemoveDemo = () => {
+    if (!confirm('سيتم حذف المشروع التجريبي واختبارات التحقق التجريبية فقط. مشاريعك وبياناتك لن تُمس. متابعة؟')) return;
+    try {
+      const r = StorageService.removeDemoData();
+      onRefreshProjects();
+      setBackupStatus(`أُزيلت البيانات التجريبية (${r.projectsRemoved} مشروع، ${r.testsRemoved} اختبار)`);
+    } catch (e) {
+      setBackupStatus('تعذّرت الإزالة: ' + (e instanceof Error ? e.message : ''));
+    }
+    setTimeout(() => setBackupStatus(null), 4500);
   };
 
   // استعادة نسخة احتياطية
@@ -79,15 +106,17 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target?.result as string;
-      const success = StorageService.importFullBackup(content);
-      if (success) {
+      const r = StorageService.importFullBackupDetailed(content);
+      if (r.ok) {
         onRefreshProjects();
-        setBackupStatus('تمت استعادة كافة المشاريع والبيانات بنجاح!');
+        setBackupStatus(`${r.message} — حُفظت نسخة من بياناتك السابقة تلقائياً قبل الاستبدال.`);
       } else {
-        alert('ملف النسخة الاحتياطية غير صالح أو تالف.');
+        alert('رُفض الملف ولم تتغير بياناتك: ' + r.message);
       }
     };
+    reader.onerror = () => alert('تعذّرت قراءة الملف.');
     reader.readAsText(file);
+    e.target.value = '';
   };
 
   return (
@@ -107,7 +136,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => generateEngineeringPDF(activeProject)}
+              onClick={() => runExport(() => generateEngineeringPDF(activeProject), 'تقرير PDF')}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-600/90 hover:bg-red-500 text-white font-bold text-xs shadow-md transition"
               title="توليد تقرير هندسي رسمي PDF"
             >
@@ -116,7 +145,26 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
             </button>
 
             <button
-              onClick={() => exportToCSV(activeProject)}
+              onClick={() => runExport(() => exportToXLSX(activeProject), 'ملف Excel (XLSX)')}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-green-700/90 hover:bg-green-600 text-white font-bold text-xs shadow-md transition"
+              title="تصدير ملف Excel أصلي (XLSX) للقياسات والحصر"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              <span>Excel</span>
+            </button>
+
+            {StorageService.hasDemoData() && (
+              <button
+                onClick={handleRemoveDemo}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-600/20 border border-amber-500/40 text-amber-300 font-bold text-xs transition"
+                title="حذف البيانات التجريبية فقط"
+              >
+                <span>إزالة البيانات التجريبية</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => runExport(() => exportToCSV(activeProject), 'ملف CSV')}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition"
               title="تصدير جدول القياسات والـ BOQ إلى Excel / CSV"
             >
@@ -318,7 +366,7 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
 
           {backupStatus && (
             <div className="mt-3 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-xs font-bold text-center animate-pulse">
-              ✓ {backupStatus}
+              {/فشل|تعذّر/.test(backupStatus) ? '⚠' : '✓'} {backupStatus}
             </div>
           )}
         </div>

@@ -23,7 +23,8 @@ import {
   Layers, 
   CheckCircle2,
   Share2,
-  Mail
+  Mail,
+  Wrench
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -55,7 +56,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       title: t.cameraMeasure,
       desc: t.cameraMeasureDesc,
       icon: Scan,
-      tags: ['تتبع ليزري حي', 'Trigonometric', 'AR'],
+      tags: ['مؤشر رقمي + مسطرة', 'Trigonometric', 'مستشعرات'],
       badge: 'الأساسية'
     },
     {
@@ -81,6 +82,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
       icon: Box,
       tags: ['حجم م³', 'معامل الامتلاء', 'صناديق وخزانات'],
       badge: 'أحجام'
+    },
+    {
+      id: 'tools',
+      title: t.fieldTools,
+      desc: t.fieldToolsDesc,
+      icon: Wrench,
+      tags: ['ميزان رقمي', 'درج', 'حديد تسليح'],
+      badge: 'أدوات'
     },
     {
       id: 'boq',

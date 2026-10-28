@@ -7,6 +7,7 @@ import {
   calculateEarthwork 
 } from '../utils/engineeringMath';
 import { StorageService } from '../services/storage';
+import { tryConvert, unitKind, KIND_LABEL } from '../utils/units';
 import { 
   Calculator, 
   Layers, 
@@ -196,21 +197,38 @@ export const QuantitySurveyor: React.FC<QuantitySurveyorProps> = ({ project, onR
               <FolderInput className="w-4 h-4 text-cyan-400 shrink-0" />
               <span className="text-slate-400">استيراد من قياس سابق:</span>
               <select
+                defaultValue=""
                 onChange={(e) => {
                   const m = project.measurements.find((x) => x.id === e.target.value);
-                  if (m) {
-                    setFinishArea(m.value);
-                    showFeedback(`تم اقتباس مساحة "${m.title}" (${m.value} ${m.unit}) في الحاسبة!`);
+                  if (!m) return;
+                  // حقل المساحة يقبل قياسات المساحة فقط — بعد تحويلها إلى م²
+                  const r = tryConvert(m.value, m.unit, 'm²');
+                  if (!r.ok) {
+                    const k = unitKind(m.unit);
+                    showFeedback(`لا يمكن الاستيراد: «${m.title}» قياس ${k ? KIND_LABEL[k] : 'غير معروف'} (${m.unit}) وحقل التشطيبات يحتاج مساحة (م²).`);
+                    e.target.value = '';
+                    return;
                   }
+                  if (!(r.value > 0)) {
+                    showFeedback('لا يمكن استيراد مساحة صفرية أو سالبة');
+                    e.target.value = '';
+                    return;
+                  }
+                  setFinishArea(Number(r.value.toFixed(3)));
+                  setActiveCategory('finishes');
+                  showFeedback(`تم اقتباس مساحة "${m.title}" (${r.value.toFixed(2)} م²) في الحاسبة`);
                 }}
                 className="bg-transparent text-cyan-300 font-bold focus:outline-none cursor-pointer max-w-[180px] truncate"
               >
-                <option value="">اختر قياساً...</option>
-                {project.measurements.map((m) => (
-                  <option key={m.id} value={m.id} className="bg-slate-900 text-slate-200">
-                    {m.title} ({m.value} {m.unit})
-                  </option>
-                ))}
+                <option value="">اختر قياس مساحة...</option>
+                {project.measurements.map((m) => {
+                  const isArea = unitKind(m.unit) === 'area';
+                  return (
+                    <option key={m.id} value={m.id} disabled={!isArea} className="bg-slate-900 text-slate-200">
+                      {m.title} ({m.value} {m.unit}){isArea ? '' : ' — غير متوافق'}
+                    </option>
+                  );
+                })}
               </select>
             </div>
           )}
@@ -620,7 +638,7 @@ export const QuantitySurveyor: React.FC<QuantitySurveyorProps> = ({ project, onR
 
         {feedbackMsg && (
           <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-xs font-bold text-center animate-pulse">
-            ✓ {feedbackMsg}
+            {feedbackMsg.startsWith('لا يمكن') ? '⚠' : '✓'} {feedbackMsg}
           </div>
         )}
 

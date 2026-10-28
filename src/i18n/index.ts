@@ -24,6 +24,8 @@ export interface Translations {
   surfaceMeasureDesc: string;
   object3D: string;
   object3DDesc: string;
+  fieldTools: string;
+  fieldToolsDesc: string;
   boqTakeoff: string;
   boqTakeoffDesc: string;
   engineeringLib: string;
@@ -87,13 +89,15 @@ export const translations: Record<Language, Translations> = {
 
     dashboard: 'الرئيسية',
     cameraMeasure: 'كاميرا القياس الذكية',
-    cameraMeasureDesc: 'قياس وتتبع ليزري تلقائي للزوايا والمسافات',
+    cameraMeasureDesc: 'قياس المسافات والمساحات بالكاميرا والمستشعرات — مؤشر رقمي بعلامات مسطرة',
     roomScanner: 'مسح الغرف 2D/3D',
     roomScannerDesc: 'مخطط ومجسم الغرفة وتصدير DXF و OBJ',
     surfaceMeasure: 'قياس الأسطح والميول',
     surfaceMeasureDesc: 'أفقية ومائلة وواجهات مع تصحيح الميل',
     object3D: 'مسح 3D والأحجام',
     object3DDesc: 'أجسام وصناديق مع معامل المادة الصلبة',
+    fieldTools: 'أدوات ميدانية',
+    fieldToolsDesc: 'ميزان رقمي، درج، حديد تسليح، فحص زاوية قائمة، ميل',
     boqTakeoff: 'حصر الكميات BOQ',
     boqTakeoffDesc: 'خرسانة، تشطيبات، حفر، حساب تكاليف وهدر',
     engineeringLib: 'المكتبة والتحويل',
@@ -103,9 +107,9 @@ export const translations: Record<Language, Translations> = {
     verificationHub: 'المعايرة والتحقق',
     verificationHubDesc: 'اختبارات الدقة الميدانية وإخلاء المسؤولية',
 
-    autoMeasureActive: 'القياس الليزري التلقائي نشط',
+    autoMeasureActive: 'القياس بالكاميرا والمستشعرات نشط',
     autoMeasureDesc: 'مرر الكاميرا على الزوايا والأسطح لقياس المسافة تلقائياً',
-    laserTracking: 'تتبع ليزري حي',
+    laserTracking: 'مؤشر رقمي حي',
     lockedPoint: 'تم التقاط الهدف',
     distance: 'المسافة المقاسة',
     confidence: 'مستوى الدقة',
@@ -152,13 +156,15 @@ export const translations: Record<Language, Translations> = {
 
     dashboard: 'Dashboard',
     cameraMeasure: 'Smart Camera Measure',
-    cameraMeasureDesc: 'Live laser auto-tracking for corners & distances',
+    cameraMeasureDesc: 'Measure distances & areas with camera + sensors — digital pointer with ruler ticks',
     roomScanner: '2D/3D Room Scanner',
     roomScannerDesc: 'Floorplan & 3D mesh with DXF / OBJ export',
     surfaceMeasure: 'Surface & Slope',
     surfaceMeasureDesc: 'Horizontal & inclined roofs with tilt correction',
     object3D: '3D Object & Volume',
     object3DDesc: 'Boxes & tanks with solidity density factor',
+    fieldTools: 'Field Tools',
+    fieldToolsDesc: 'Digital level, stairs, rebar weight, squareness check, slope',
     boqTakeoff: 'BOQ Takeoff',
     boqTakeoffDesc: 'Concrete, finishes, earthwork, waste & cost calculator',
     engineeringLib: 'Engineering Library',
@@ -217,13 +223,15 @@ export const translations: Record<Language, Translations> = {
 
     dashboard: 'Inicio',
     cameraMeasure: 'Cámara de Medición Láser',
-    cameraMeasureDesc: 'Seguimiento láser automático para esquinas y distancias',
+    cameraMeasureDesc: 'Mide distancias y áreas con cámara y sensores — puntero digital con marcas de regla',
     roomScanner: 'Escáner 2D/3D de Habitaciones',
     roomScannerDesc: 'Plano 2D y modelo 3D con exportación DXF y OBJ',
     surfaceMeasure: 'Superficies e Inclinación',
     surfaceMeasureDesc: 'Techos inclinados y fachadas con corrección de ángulo',
     object3D: 'Objetos 3D y Volumen',
     object3DDesc: 'Cajas y depósitos con factor de densidad sólida',
+    fieldTools: 'Herramientas de campo',
+    fieldToolsDesc: 'Nivel digital, escaleras, peso de armadura, escuadra, pendiente',
     boqTakeoff: 'Cómputo Métrico (BOQ)',
     boqTakeoffDesc: 'Hormigón, acabados, movimiento de tierras y costos',
     engineeringLib: 'Biblioteca y Conversor',

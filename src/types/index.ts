@@ -122,6 +122,8 @@ export interface QuantityItem {
 
 export interface Project {
   id: string;
+  /** مشروع تجريبي يمكن إزالته دون المساس ببيانات المستخدم */
+  isDemo?: boolean;
   name: string;
   code: string;
   client: string;
@@ -150,9 +152,16 @@ export interface VerificationTest {
   date: string;
   testName: string;
   condition: 'indoor_bright' | 'indoor_dim' | 'white_wall' | 'textured' | 'long_range' | 'short_range';
-  nominalValueMeters: number; // القيمة المرجعية الفعلية بشريط القياس
-  measuredValueMeters: number; // القيمة الناتجة عن التطبيق
-  absoluteErrorMm: number;
+  nominalValueMeters: number; // القيمة المرجعية الفعلية (متر / م² / م³ حسب quantityKind)
+  measuredValueMeters: number; // القيمة الناتجة عن التطبيق (بنفس الوحدة)
+  /** خطأ الطول بالمليمتر (للقياسات الطولية فقط) */
+  absoluteErrorMm?: number;
+  /** نوع الكمية المقاسة؛ الافتراضي طول */
+  quantityKind?: 'length' | 'area' | 'volume';
+  /** الخطأ المطلق بوحدة المقدار (م² للمساحة، م³ للحجم) */
+  absoluteError?: number;
+  errorUnit?: string;
+  isDemo?: boolean;
   relativeErrorPercentage: number;
   method: MeasurementMethod;
   passed: boolean;

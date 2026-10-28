@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Project } from '../types';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { useDeviceSensors } from '../hooks/useDeviceSensors';
@@ -44,7 +44,14 @@ export const Header: React.FC<HeaderProps> = ({
   const t = translations[lang] || translations.ar;
   const { isInstallable, install } = usePWAInstall();
   const { pitch, roll, stability, hasDepthSensor } = useDeviceSensors();
-  const [isOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  useEffect(() => {
+    const on = () => setIsOnline(true);
+    const off = () => setIsOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+  }, []);
 
   // زر مشاركة التطبيق عبر قائمة أندرويد الموسعة (Web Share API)
   const handleShareApp = async () => {
@@ -72,10 +79,13 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Brand & Digital Logo (Inspired by NW Digital Aesthetic) */}
         <div className="flex items-center gap-3">
           <div className="relative group cursor-pointer" onClick={() => onSelectProject(activeProject.id)}>
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#0e1726] to-[#070a12] border border-cyan-500/40 flex items-center justify-center shadow-lg shadow-cyan-950/50 text-cyan-400 group-hover:border-cyan-400 transition">
-              <span className="font-mono text-sm font-black tracking-tighter text-cyan-300">NW</span>
-            </div>
-            <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-cyan-400 animate-ping opacity-75" />
+            <img
+              src={`${import.meta.env.BASE_URL}icon.svg`}
+              alt="BuildMeasure Pro"
+              width={40}
+              height={40}
+              className="w-10 h-10 rounded-2xl shadow-lg shadow-cyan-950/50 border border-cyan-500/30 group-hover:border-cyan-400 transition"
+            />
           </div>
 
           <div>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { VerificationTest, CalibrationProfile } from '../types';
 import { StorageService } from '../services/storage';
 import { useDeviceSensors } from '../hooks/useDeviceSensors';
+import { computeVerificationError, QuantityKind } from '../utils/units';
 import { 
   ShieldCheck, 
   Sliders, 
@@ -27,26 +28,41 @@ export const VerificationHub: React.FC = () => {
   const [condition, setCondition] = useState<VerificationTest['condition']>('indoor_bright');
   const [notes, setNotes] = useState<string>('إضاءة جيدة وجدار به معالم واضحة');
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
+  const [quantityKind, setQuantityKind] = useState<QuantityKind>('length');
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const kindUnit = quantityKind === 'length' ? 'م' : quantityKind === 'area' ? 'م²' : 'م³';
 
-  // حساب الخطأ المطلق والنسبي
-  const absoluteErrorMm = Math.round(Math.abs(measuredMeters - nominalMeters) * 1000);
-  const relativeErrorPercentage = Number(((Math.abs(measuredMeters - nominalMeters) / (nominalMeters || 1)) * 100).toFixed(2));
+  // حساب الخطأ المطلق والنسبي بوحدة تناسب نوع الكمية (مم للطول، م² للمساحة، م³ للحجم)
+  const err = computeVerificationError(nominalMeters, measuredMeters, quantityKind);
+  const relativeErrorPercentage = err.relativePct;
   const isPassed = relativeErrorPercentage <= 1.5; // معيار الدقة المعمارية (أقل من 1.5%)
 
   const handleAddTest = () => {
-    const newTest = StorageService.addVerificationTest({
-      testName,
-      nominalValueMeters: nominalMeters,
-      measuredValueMeters: measuredMeters,
-      absoluteErrorMm,
-      relativeErrorPercentage,
-      condition,
-      method: 'calibrated_camera',
-      passed: isPassed,
-      notes,
-    });
-    setTests(StorageService.getVerificationTests());
-    setShowAddModal(false);
+    if (!(nominalMeters > 0) || !(measuredMeters > 0)) {
+      setSaveError('أدخل قيماً أكبر من الصفر للقيمتين المرجعية والمقاسة');
+      return;
+    }
+    try {
+      StorageService.addVerificationTest({
+        testName,
+        nominalValueMeters: nominalMeters,
+        measuredValueMeters: measuredMeters,
+        quantityKind,
+        absoluteErrorMm: quantityKind === 'length' ? err.absolute : undefined,
+        absoluteError: err.absolute,
+        errorUnit: err.unit,
+        relativeErrorPercentage,
+        condition,
+        method: 'calibrated_camera',
+        passed: isPassed,
+        notes,
+      });
+      setTests(StorageService.getVerificationTests());
+      setShowAddModal(false);
+      setSaveError(null);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'تعذّر الحفظ');
+    }
   };
 
   return (
@@ -183,15 +199,15 @@ export const VerificationHub: React.FC = () => {
               <tbody className="divide-y divide-slate-800/60 font-medium">
                 {tests.map((t) => (
                   <tr key={t.id} className="hover:bg-slate-900/40">
-                    <td className="p-2.5 font-bold text-slate-100">{t.testName}</td>
+                    <td className="p-2.5 font-bold text-slate-100">{t.testName}{t.isDemo && <span className="mr-2 px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 text-[9px] font-bold">تجريبي</span>}</td>
                     <td className="p-2.5">
                       <span className="px-2 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300">
                         {t.condition === 'indoor_bright' ? 'إضاءة جيدة' : t.condition === 'indoor_dim' ? 'إضاءة خافتة' : 'جدار أبيض'}
                       </span>
                     </td>
-                    <td className="p-2.5 font-mono-num font-bold text-slate-200">{t.nominalValueMeters.toFixed(3)} م</td>
-                    <td className="p-2.5 font-mono-num font-bold text-cyan-400">{t.measuredValueMeters.toFixed(3)} م</td>
-                    <td className="p-2.5 font-mono-num text-slate-300">{t.absoluteErrorMm} مم</td>
+                    <td className="p-2.5 font-mono-num font-bold text-slate-200">{t.nominalValueMeters.toFixed(3)} {t.quantityKind === 'area' ? 'م²' : t.quantityKind === 'volume' ? 'م³' : 'م'}</td>
+                    <td className="p-2.5 font-mono-num font-bold text-cyan-400">{t.measuredValueMeters.toFixed(3)} {t.quantityKind === 'area' ? 'م²' : t.quantityKind === 'volume' ? 'م³' : 'م'}</td>
+                    <td className="p-2.5 font-mono-num text-slate-300">{t.absoluteError ?? t.absoluteErrorMm} {t.errorUnit ?? 'مم'}</td>
                     <td className="p-2.5 font-mono-num font-bold text-sky-400">{t.relativeErrorPercentage}%</td>
                     <td className="p-2.5">
                       {t.passed ? (
@@ -289,11 +305,26 @@ export const VerificationHub: React.FC = () => {
                 />
               </div>
 
+              <div>
+                <label className="block text-slate-400 mb-1">نوع الكمية المقاسة</label>
+                <select
+                  value={quantityKind}
+                  onChange={(e) => setQuantityKind(e.target.value as QuantityKind)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white"
+                >
+                  <option value="length">طول (م)</option>
+                  <option value="area">مساحة (م²)</option>
+                  <option value="volume">حجم (م³)</option>
+                </select>
+                <p className="text-[10px] text-slate-500 mt-1">القيمتان أدناه بوحدة: {kindUnit}</p>
+              </div>
+              {saveError && <div className="p-2 rounded-lg bg-rose-950/60 border border-rose-500/40 text-rose-200 text-[11px]">{saveError}</div>}
+
               {/* Dynamic Error Computation */}
               <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1">
                 <div className="flex justify-between">
                   <span className="text-slate-400">الخطأ المطلق:</span>
-                  <span className="font-mono-num font-bold text-cyan-400">{absoluteErrorMm} مم</span>
+                  <span className="font-mono-num font-bold text-cyan-400">{err.absolute} {err.unit}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">نسبة الخطأ:</span>

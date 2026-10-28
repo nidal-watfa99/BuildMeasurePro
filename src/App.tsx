@@ -16,9 +16,10 @@ import { NewProjectModal } from './components/NewProjectModal';
 import { PWAInstallModal } from './components/PWAInstallModal';
 import { SourceCodeModal } from './components/SourceCodeModal';
 import { ContactModal } from './components/ContactModal';
+import { ToolsKit } from './components/ToolsKit';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { Language, getInitialLanguage, translations } from './i18n';
-import { LayoutDashboard } from 'lucide-react';
+import { LayoutDashboard, AlertTriangle, X } from 'lucide-react';
 
 export default function App() {
   const [lang, setLang] = useState<Language>(() => getInitialLanguage());
@@ -34,6 +35,17 @@ export default function App() {
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
 
   const { isInstallable, install } = usePWAInstall();
+
+  // رسائل أخطاء/تحذيرات التخزين (امتلاء المساحة، تلف البيانات...)
+  const [storageNotice, setStorageNotice] = useState<{ level: 'error' | 'warning'; message: string } | null>(null);
+  useEffect(() => {
+    const onNotice = (e: Event) => {
+      const d = (e as CustomEvent<{ level: 'error' | 'warning'; message: string }>).detail;
+      if (d) setStorageNotice(d);
+    };
+    window.addEventListener('bmp-storage', onNotice);
+    return () => window.removeEventListener('bmp-storage', onNotice);
+  }, []);
 
   // مزامنة اتجاه ولغة الصفحة HTML
   useEffect(() => {
@@ -100,13 +112,30 @@ export default function App() {
             </button>
 
             <Navigation
-              activeTab={activeTab === 'dashboard' ? ('camera' as any) : activeTab}
+              activeTab={activeTab === 'dashboard' ? null : activeTab}
               onTabChange={(tab) => setActiveTab(tab)}
               lang={lang}
             />
           </div>
         </div>
       </div>
+
+      {storageNotice && (
+        <div
+          role="alert"
+          className={`mx-2 sm:mx-4 mt-2 flex items-start gap-2 rounded-xl border px-3 py-2 text-xs font-bold ${
+            storageNotice.level === 'error'
+              ? 'bg-rose-950/70 border-rose-500/50 text-rose-100'
+              : 'bg-amber-950/70 border-amber-500/50 text-amber-100'
+          }`}
+        >
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span className="flex-1 leading-relaxed">{storageNotice.message}</span>
+          <button onClick={() => setStorageNotice(null)} aria-label="إغلاق" className="shrink-0 opacity-80 hover:opacity-100">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Main Content Viewport */}
       <main className="flex-1">
@@ -140,6 +169,10 @@ export default function App() {
 
         {activeTab === 'object3d' && (
           <Object3DScanner />
+        )}
+
+        {activeTab === 'tools' && (
+          <ToolsKit />
         )}
 
         {activeTab === 'boq' && (

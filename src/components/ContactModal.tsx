@@ -15,15 +15,21 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose, lan
   const [message, setMessage] = useState('');
   const [copied, setCopied] = useState(false);
   const [sentSuccess, setSentSuccess] = useState(false);
+  const [includeDiag, setIncludeDiag] = useState(true);
 
   if (!isOpen) return null;
 
   const developerEmail = 'nidalwatfa99@gmail.com';
 
   const handleCopyEmail = () => {
-    navigator.clipboard.writeText(developerEmail);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      navigator.clipboard.writeText(developerEmail).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }).catch(() => window.prompt('انسخ البريد الإلكتروني:', developerEmail));
+    } catch {
+      window.prompt('انسخ البريد الإلكتروني:', developerEmail);
+    }
   };
 
   const handleSendEmail = (e: React.FormEvent) => {
@@ -38,12 +44,14 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose, lan
       `نوع البلاغ: ${typeLabel}\n` +
       `الموضوع: ${subject}\n\n` +
       `نص الرسالة والملاحظات:\n${message}\n\n` +
-      `--------------------------------\n` +
-      `معلومات الجهاز والنظام:\n` +
-      `User Agent: ${navigator.userAgent}\n` +
-      `Language: ${navigator.language}\n` +
-      `Screen: ${window.screen.width}x${window.screen.height}\n` +
-      `التاريخ: ${new Date().toLocaleString()}\n`
+      (includeDiag
+        ? `--------------------------------\n` +
+          `معلومات تشخيصية غير حساسة (أُرفقت بموافقتك):\n` +
+          `User Agent: ${navigator.userAgent}\n` +
+          `Language: ${navigator.language}\n` +
+          `Screen: ${window.screen.width}x${window.screen.height}\n` +
+          `التاريخ: ${new Date().toLocaleString()}\n`
+        : '')
     );
 
     window.location.href = `mailto:${developerEmail}?subject=${emailSubject}&body=${emailBody}`;
@@ -51,7 +59,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose, lan
     setTimeout(() => {
       setSentSuccess(false);
       onClose();
-    }, 2500);
+    }, 4000);
   };
 
   return (
@@ -174,9 +182,14 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose, lan
             />
           </div>
 
+          <label className="flex items-start gap-2 text-[11px] text-slate-400 leading-relaxed cursor-pointer">
+            <input type="checkbox" checked={includeDiag} onChange={(e) => setIncludeDiag(e.target.checked)} className="mt-0.5 accent-cyan-400" />
+            <span>إرفاق معلومات تشخيصية غير حساسة (نوع المتصفح والجهاز وحجم الشاشة واللغة). لا تُرفق أي صور أو بيانات مشاريع أو كلمات مرور.</span>
+          </label>
+
           {sentSuccess && (
             <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold text-center">
-              ✓ تم فتح تطبيق البريد لإرسال رسالتك إلى المطور مباشرة!
+              تم فتح تطبيق البريد المثبّت على جهازك ومعه رسالتك جاهزة. اضغط «إرسال» داخله لإتمام الإرسال (لا يُرسل التطبيق شيئاً تلقائياً).
             </div>
           )}
 

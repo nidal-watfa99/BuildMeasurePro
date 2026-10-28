@@ -1,4 +1,4 @@
-import { Point2D, Point3D } from '../types';
+import type { Point2D, Point3D } from '../types';
 
 /**
  * حساب المسافة الإقليدية ثنائية الأبعاد (بالمتر حسب مقياس الرسم)
@@ -212,4 +212,131 @@ export function calculateEarthwork(
     looseVolume: Number(looseVolume.toFixed(2)),
     trucksCount,
   };
+}
+
+
+// ───────────────────────── مسح الغرف (مصدر حسابات موحّد) ─────────────────────────
+
+export interface OpeningInput {
+  /** رقم الجدار (يبدأ من 0) */
+  wallIndex: number;
+  width: number;
+  height: number;
+}
+
+export interface WallCalc {
+  length: number;
+  height: number;
+  grossArea: number;
+  openingsArea: number;
+  netArea: number;
+}
+
+export interface RoomCalc {
+  floorArea: number;
+  ceilingArea: number;
+  perimeter: number;
+  walls: WallCalc[];
+  totalWallGrossArea: number;
+  totalWallNetArea: number;
+}
+
+const r2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
+
+/**
+ * حساب غرفة من نقاط مضلعها وارتفاعها وفتحاتها.
+ * مساحة الجدار الصافية = الطول × الارتفاع − مجموع مساحات الفتحات على الجدار (لا تقل عن صفر).
+ */
+export function calculateRoomMetrics(points: Point2D[], height: number, openings: OpeningInput[] = []): RoomCalc {
+  const n = points.length;
+  const walls: WallCalc[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = points[i];
+    const b = points[(i + 1) % n];
+    const length = calculateDistance2D(a, b);
+    const gross = length * height;
+    const openingsArea = openings
+      .filter((o) => o.wallIndex === i)
+      .reduce((s, o) => s + Math.max(0, o.width) * Math.max(0, o.height), 0);
+    walls.push({
+      length: r2(length),
+      height,
+      grossArea: r2(gross),
+      openingsArea: r2(openingsArea),
+      netArea: r2(Math.max(0, gross - openingsArea)),
+    });
+  }
+  const floorArea = r2(calculatePolygonArea(points));
+  return {
+    floorArea,
+    ceilingArea: floorArea,
+    perimeter: r2(calculatePolygonPerimeter(points)),
+    walls,
+    totalWallGrossArea: r2(walls.reduce((s, w) => s + w.grossArea, 0)),
+    totalWallNetArea: r2(walls.reduce((s, w) => s + w.netArea, 0)),
+  };
+}
+
+/** حجم متوازي المستطيلات وحجم المادة الصلبة بمعامل الامتلاء */
+export function calculateBoxVolume(length: number, width: number, height: number, solidity = 1) {
+  const gross = Math.max(0, length) * Math.max(0, width) * Math.max(0, height);
+  const s = Math.min(1, Math.max(0, solidity));
+  return { gross, net: gross * s };
+}
+
+// ───────────────────────── أدوات ميدانية ─────────────────────────
+
+/** نسبة الميل المئوية من الزاوية (درجات) */
+export function slopePercentFromAngle(angleDeg: number): number {
+  return Math.tan((angleDeg * Math.PI) / 180) * 100;
+}
+
+export function angleFromSlopePercent(percent: number): number {
+  return (Math.atan(percent / 100) * 180) / Math.PI;
+}
+
+/**
+ * حاسبة الدرج: ارتفاع الطابق الصافي والمسافة الأفقية المتاحة.
+ * عدد القوائم = أقرب عدد صحيح لارتفاع الطابق / ارتفاع القائمة المثالي،
+ * ثم يُعاد حساب القائمة الفعلية بالقسمة المتساوية. قاعدة بلوندل: 2R + T ∈ [60, 66] سم.
+ */
+export function calculateStairs(totalRiseM: number, idealRiserM = 0.17, treadM = 0.28) {
+  if (!(totalRiseM > 0) || !(idealRiserM > 0) || !(treadM > 0)) return null;
+  const risers = Math.max(1, Math.round(totalRiseM / idealRiserM));
+  const riser = totalRiseM / risers;
+  const treads = risers - 1;
+  const blondel = 2 * riser + treadM; // متر
+  return {
+    risers,
+    treads,
+    riser,
+    tread: treadM,
+    run: treads * treadM,
+    slopeDeg: (Math.atan(riser / treadM) * 180) / Math.PI,
+    blondelCm: blondel * 100,
+    comfortable: blondel >= 0.60 && blondel <= 0.66,
+  };
+}
+
+/** وزن حديد التسليح: W(كغ/م) = d² / 162 حيث d بالمليمتر */
+export function rebarWeightPerMeter(diameterMm: number): number {
+  return (diameterMm * diameterMm) / 162;
+}
+
+/** المثلث القائم: يُعطى ضلعان ويُحسب الثالث (a,b ضلعا القائمة، c الوتر) */
+export function solveRightTriangle(a?: number, b?: number, c?: number) {
+  const has = [a, b, c].map((v) => typeof v === 'number' && Number.isFinite(v) && v > 0);
+  if (has.filter(Boolean).length !== 2) return null;
+  if (has[0] && has[1]) { const cc = Math.hypot(a!, b!); return { a: a!, b: b!, c: cc }; }
+  if (has[0] && has[2]) { if (c! <= a!) return null; return { a: a!, b: Math.sqrt(c! * c! - a! * a!), c: c! }; }
+  if (c! <= b!) return null;
+  return { a: Math.sqrt(c! * c! - b! * b!), b: b!, c: c! };
+}
+
+/** فحص تعامد الزاوية بقياس ضلعين والوتر: الانحراف عن 90° بالدرجات */
+export function squarenessDeviation(a: number, b: number, diagonal: number): number | null {
+  if (!(a > 0 && b > 0 && diagonal > 0)) return null;
+  const cosC = (a * a + b * b - diagonal * diagonal) / (2 * a * b);
+  if (cosC < -1 || cosC > 1) return null;
+  return (Math.acos(cosC) * 180) / Math.PI - 90;
 }
