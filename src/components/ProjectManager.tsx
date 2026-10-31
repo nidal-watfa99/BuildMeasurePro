@@ -26,7 +26,6 @@ interface ProjectManagerProps {
   onSelectProject: (id: string) => void;
   onRefreshProjects: () => void;
   onOpenNewProjectModal: () => void;
-  onOpenSourceModal: () => void;
 }
 
 export const ProjectManager: React.FC<ProjectManagerProps> = ({
@@ -35,7 +34,6 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
   onSelectProject,
   onRefreshProjects,
   onOpenNewProjectModal,
-  onOpenSourceModal,
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filterType, setFilterType] = useState<string>('all');
@@ -170,15 +168,6 @@ export const ProjectManager: React.FC<ProjectManagerProps> = ({
             >
               <FileSpreadsheet className="w-4 h-4" />
               <span>تصدير CSV</span>
-            </button>
-
-            <button
-              onClick={onOpenSourceModal}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black font-black text-xs shadow-md transition cursor-pointer"
-              title="تحميل كود المشروع المصدري كاملاً (ZIP)"
-            >
-              <Download className="w-4 h-4" />
-              <span>تحميل الكود (ZIP)</span>
             </button>
 
             <button

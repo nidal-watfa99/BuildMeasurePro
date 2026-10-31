@@ -7,7 +7,6 @@ export interface Translations {
   newProject: string;
   installPWA: string;
   installMobile: string;
-  downloadSource: string;
   shareApp: string;
   contactDev: string;
   feedbackAndReport: string;
@@ -80,7 +79,6 @@ export const translations: Record<Language, Translations> = {
     newProject: '+ مشروع جديد...',
     installPWA: 'تثبيت PWA',
     installMobile: 'تثبيت الجوال',
-    downloadSource: 'تحميل الكود (ZIP)',
     shareApp: 'مشاركة التطبيق',
     contactDev: 'تواصل مع المطور',
     feedbackAndReport: 'تقديم ملاحظات وبلاغات',
@@ -147,7 +145,6 @@ export const translations: Record<Language, Translations> = {
     newProject: '+ New Project...',
     installPWA: 'Install PWA',
     installMobile: 'Mobile Install',
-    downloadSource: 'Download Code (ZIP)',
     shareApp: 'Share App',
     contactDev: 'Contact Developer',
     feedbackAndReport: 'Feedback & Bug Reports',
@@ -214,7 +211,6 @@ export const translations: Record<Language, Translations> = {
     newProject: '+ Nuevo Proyecto...',
     installPWA: 'Instalar PWA',
     installMobile: 'Instalar en Móvil',
-    downloadSource: 'Descargar Código (ZIP)',
     shareApp: 'Compartir App',
     contactDev: 'Contactar Desarrollador',
     feedbackAndReport: 'Comentarios y Reportes',

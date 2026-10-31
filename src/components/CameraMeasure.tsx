@@ -12,9 +12,11 @@ import {
   quatFromEuler,
   quatNlerp,
   quatAverage,
+  quatConj,
+  rotateVec,
   cameraForward,
-  projectToScreen,
-  focalFromFov,
+  deviceDirToScreenOffset,
+  focalFromVideoCover,
   depressionDeg,
   intersectFloor,
   intersectWall,
@@ -30,6 +32,11 @@ import {
   formatLengthText,
   chooseTickStep,
 } from '../utils/laserMath';
+import { OrientationFusion } from '../utils/orientationFusion';
+import { VisualGyro, rgbaToGray } from '../utils/visualGyro';
+import type { AnchorTemplate, TrackResult } from '../utils/visualGyro';
+import { estimateFocalFromSweep, fovFromFocal } from '../utils/focalCalibration';
+import type { SweepSample } from '../utils/focalCalibration';
 import {
   RefreshCw,
   Trash2,
@@ -66,9 +73,22 @@ interface FrameData {
   depression: number;
   speed: number;
   live: boolean;
+  /** حالة التتبع: بصري موثوق / ضعيف (احتياطي بالمستشعرات) / مستشعرات فقط */
+  vision: 'vision' | 'weak' | 'off';
+  quality: number;
+  /** هل كل مرتكز مقفول على بقعته في الصورة */
+  locks: boolean[];
 }
 
-const CAPTURE_MS = 380;
+/** مرتكز: نقطة قياس مثبتة بقالب صورة حتى تبقى ملتصقة بالأرض */
+interface AnchorRec {
+  dir: Vec3;
+  tpl: AnchorTemplate | null;
+  locked: boolean;
+}
+
+const UP: Vec3 = { x: 0, y: 0, z: 1 };
+const CAPTURE_MS = 450;
 const CYAN = '#00f0ff';
 const SKY = '#38bdf8';
 const AMBER = '#fbbf24';
@@ -81,6 +101,9 @@ const INITIAL_FRAME: FrameData = {
   depression: 0,
   speed: 0,
   live: false,
+  vision: 'off',
+  quality: 0,
+  locks: [],
 };
 
 function getScreenAngle(): number {
@@ -144,10 +167,15 @@ export const CameraMeasure: React.FC<CameraMeasureProps> = ({ onSaveSuccess, onC
   const [torchSupported, setTorchSupported] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [fovCal, setFovCal] = useState<{ tilt: number; frames: number; still: boolean } | null>(null);
 
   // مراجع للحلقة الزمنية
-  const cfgRef = useRef({ mode, heightM, plane });
-  cfgRef.current = { mode, heightM, plane };
+  const cfgRef = useRef({ mode, heightM, plane, fovDeg, screenAngle });
+  cfgRef.current = { mode, heightM, plane, fovDeg, screenAngle };
+  const fusionRef = useRef<OrientationFusion>(new OrientationFusion());
+  const gyroRef = useRef<VisualGyro | null>(null);
+  const anchorsRef = useRef<AnchorRec[]>([]);
+  const calRef = useRef<{ samples: SweepSample[]; up0: Vec3 | null } | null>(null);
   const frameRef = useRef<FrameData>(INITIAL_FRAME);
   const captureRef = useRef<{ start: number; samples: Quat[] } | null>(null);
   const virtualRef = useRef({ alpha: 0, beta: 62, gamma: 0 });
@@ -244,6 +272,20 @@ export const CameraMeasure: React.FC<CameraMeasureProps> = ({ onSaveSuccess, onC
   }, []);
 
   // ───────── إضافة نقطة مثبتة ─────────
+  /** ينشئ مرتكزاً للنقطة: اتجاهها من الكاميرا + قالب صورة من الإطار الحالي (إن أمكن) */
+  const makeAnchor = (hit: Vec3): AnchorRec => {
+    const n = Math.hypot(hit.x, hit.y, hit.z) || 1;
+    const dir: Vec3 = { x: hit.x / n, y: hit.y / n, z: hit.z / n };
+    let tpl: AnchorTemplate | null = null;
+    const g = gyroRef.current;
+    const fusion = fusionRef.current;
+    if (g && fusion.initialized) {
+      const px = g.rayToPixel(rotateVec(quatConj(fusion.q), dir));
+      if (px) tpl = g.captureAnchor(px.x, px.y);
+    }
+    return { dir, tpl, locked: !!tpl };
+  };
+
   const finalizeCapture = useCallback((q: Quat) => {
     const cfg = cfgRef.current;
     const ray = cameraForward(q);
@@ -254,6 +296,7 @@ export const CameraMeasure: React.FC<CameraMeasureProps> = ({ onSaveSuccess, onC
     if (cfg.mode === 'wall' && cfg.plane) {
       const hit = intersectWall(ray, cfg.plane);
       if (!hit) { showToast('وجّه الدائرة المركزية نحو الجدار'); return; }
+      anchorsRef.current.push(makeAnchor(hit));
       setPts((p) => [...p, hit]);
       vibrate();
       return;
@@ -270,76 +313,252 @@ export const CameraMeasure: React.FC<CameraMeasureProps> = ({ onSaveSuccess, onC
       setPlane(pl);
       setWallBase(hit);
       setPts([]);
+      anchorsRef.current = [makeAnchor(hit)];
       showToast('تم تحديد مستوى الجدار — حدّد الآن نقاط الجدار');
     } else {
+      anchorsRef.current.push(makeAnchor(hit));
       setPts((p) => [...p, hit]);
     }
     vibrate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showToast]);
 
-  // ───────── الحلقة الزمنية: توجيه الليزر + التثبيت ─────────
+  // ───────── الحلقة الزمنية: تتبع بصري + دمج الاتجاه + تثبيت المرتكزات ─────────
   useEffect(() => {
     let raf = 0;
-    let smooth: Quat | null = null;
+    let smooth: Quat | null = null; // وضع المحاكاة (بلا مستشعرات) فقط
     let prevRaw: Quat | null = null;
     let lastT = performance.now();
+    let lastEmit = 0;
+    let lastVideoTime = -1;
+    let frameFlag = false; // يُرفع عند وصول إطار فيديو جديد (requestVideoFrameCallback)
+    let lastFrameAt = performance.now();
+    let stopped = false;
+    let procEma = 6; // متوسط زمن المعالجة (ms) لضبط المعدل على الهواتف الضعيفة
+    let skipToggle = 0;
     let speed = 0;
-    const startT = performance.now();
+    let visionQ = 0;
+    let lastVisionOk = 0;
+    let visionBroken = false;
+    let canvas: HTMLCanvasElement | null = null;
+    let ctx2d: CanvasRenderingContext2D | null = null;
+    let gray: Uint8Array | null = null;
+    let gVw = 0;
+    let gVh = 0;
+
+    /** يلتقط إطار الفيديو بدقة صغيرة ويتتبعه؛ يعيد null عند الفشل */
+    const grabAndTrack = (video: HTMLVideoElement, cfg: typeof cfgRef.current): TrackResult | null => {
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      if (!gyroRef.current || vw !== gVw || vh !== gVh) {
+        const sc = 192 / Math.max(vw, vh);
+        const tw = Math.max(48, Math.round((vw * sc) / 2) * 2);
+        const th = Math.max(48, Math.round((vh * sc) / 2) * 2);
+        canvas = document.createElement('canvas');
+        canvas.width = tw;
+        canvas.height = th;
+        ctx2d = canvas.getContext('2d', { willReadFrequently: true } as CanvasRenderingContext2DSettings);
+        if (!ctx2d) { visionBroken = true; return null; }
+        gray = new Uint8Array(tw * th);
+        const f0 = Math.max(tw, th) / 2 / Math.tan((cfg.fovDeg * Math.PI) / 360);
+        gyroRef.current = new VisualGyro(tw, th, f0);
+        anchorsRef.current.forEach((an) => { an.tpl = null; an.locked = false; });
+        gVw = vw;
+        gVh = vh;
+      }
+      const g = gyroRef.current;
+      if (!g || !ctx2d || !gray) return null;
+      g.f = Math.max(g.w, g.h) / 2 / Math.tan((cfg.fovDeg * Math.PI) / 360);
+      g.screenAngle = cfg.screenAngle;
+      g.keepMatches = !!calRef.current;
+      try {
+        ctx2d.drawImage(video, 0, 0, g.w, g.h);
+        const img = ctx2d.getImageData(0, 0, g.w, g.h);
+        rgbaToGray(img.data, gray, g.w * g.h);
+      } catch {
+        visionBroken = true;
+        return null;
+      }
+      return g.push(gray);
+    };
+
+    // إطار فيديو جديد بدقة: requestVideoFrameCallback إن توفّر، وإلا مقارنة currentTime
+    type RvfcVideo = HTMLVideoElement & { requestVideoFrameCallback?: (cb: () => void) => number };
+    const v0 = videoRef.current as RvfcVideo | null;
+    const useRvfc = !!v0 && typeof v0.requestVideoFrameCallback === 'function';
+    const onVideoFrame = () => {
+      frameFlag = true;
+      lastFrameAt = performance.now();
+      if (!stopped && v0 && v0.requestVideoFrameCallback) v0.requestVideoFrameCallback(onVideoFrame);
+    };
+    if (useRvfc && v0 && v0.requestVideoFrameCallback) v0.requestVideoFrameCallback(onVideoFrame);
 
     const loop = () => {
       const now = performance.now();
+      const cfg = cfgRef.current;
       const o = orientationRef.current;
       const live = o.live && now - o.time < 1500;
       const src = live ? o : virtualRef.current;
       const raw = quatFromEuler(src.alpha, src.beta, src.gamma);
+      const fusion = fusionRef.current;
+      const video = videoRef.current;
+      if (!useRvfc && video && video.currentTime !== lastVideoTime) lastFrameAt = now;
+      const videoOk =
+        !!video &&
+        !visionBroken &&
+        facingRef.current === 'environment' &&
+        video.readyState >= 2 &&
+        video.videoWidth > 0 &&
+        !video.paused &&
+        now - lastFrameAt < 400; // فيديو متوقف ⇒ نعود للمستشعرات بدل تجميد الشاشة
+      let emit = false;
+      let q: Quat = raw;
 
-      if (prevRaw) {
-        const dot = Math.abs(raw[0] * prevRaw[0] + raw[1] * prevRaw[1] + raw[2] * prevRaw[2] + raw[3] * prevRaw[3]);
-        const ang = (2 * Math.acos(Math.min(1, dot)) * 180) / Math.PI;
-        const dt = Math.max(0.004, (now - lastT) / 1000);
-        speed = speed * 0.75 + (ang / dt) * 0.25;
+      if (!live) {
+        // وضع المحاكاة بلا مستشعرات: السحب يوجّه الكاميرا (كما كان)
+        if (prevRaw) {
+          const dot = Math.abs(raw[0] * prevRaw[0] + raw[1] * prevRaw[1] + raw[2] * prevRaw[2] + raw[3] * prevRaw[3]);
+          const ang = (2 * Math.acos(Math.min(1, dot)) * 180) / Math.PI;
+          const dt = Math.max(0.004, (now - lastT) / 1000);
+          speed = speed * 0.75 + (ang / dt) * 0.25;
+        }
+        prevRaw = raw;
+        lastT = now;
+        smooth = smooth ? quatNlerp(smooth, raw, 0.4) : raw;
+        q = smooth;
+        fusion.reset();
+        visionQ = 0;
+        emit = now - lastEmit > 30;
+      } else {
+        prevRaw = null;
+        smooth = null;
+        let track: TrackResult | null = null;
+        let ran = false;
+        if (videoOk && video) {
+          const isNew = useRvfc ? frameFlag : video.currentTime !== lastVideoTime;
+          if (isNew) {
+            frameFlag = false;
+            lastVideoTime = video.currentTime;
+            skipToggle ^= 1;
+            // على الأجهزة البطيئة نعالج إطاراً من كل اثنين
+            if (!(procEma > 24 && skipToggle === 1)) {
+              const t0 = performance.now();
+              track = grabAndTrack(video, cfg);
+              ran = true;
+              const dtF = Math.min(0.25, Math.max(0.008, (now - lastT) / 1000));
+              lastT = now;
+              fusion.update({ qSensor: raw, dqVision: track && track.dq ? track.dq : null, dt: dtF });
+              // تثبيت المرتكزات على بقعها الحقيقية في الصورة
+              const g = gyroRef.current;
+              if (g) {
+                let applied = 0;
+                for (const an of anchorsRef.current) {
+                  if (!an.tpl) { an.locked = false; continue; }
+                  const d = rotateVec(quatConj(fusion.q), an.dir);
+                  const pr = g.rayToPixel(d);
+                  if (!pr || pr.x < 14 || pr.y < 14 || pr.x > g.w - 15 || pr.y > g.h - 15) { an.locked = false; continue; }
+                  const fix = g.trackAnchor(an.tpl, pr.x, pr.y);
+                  if (fix && fix.ncc > 0.72 && Math.hypot(fix.x - pr.x, fix.y - pr.y) < 14) {
+                    an.locked = true;
+                    if (applied < 2) {
+                      fusion.applyAnchorCorrection(d, g.pixelToRay(fix.x, fix.y), 0.35, 0.5);
+                      applied++;
+                    }
+                  } else {
+                    an.locked = false;
+                  }
+                }
+                // عيّنات معايرة زاوية الرؤية
+                const cal = calRef.current;
+                if (cal) {
+                  const up = rotateVec(quatConj(raw), UP);
+                  if (!cal.up0) cal.up0 = up;
+                  cal.samples.push({ matches: g.lastMatches, up });
+                  if (cal.samples.length > 900) cal.samples.shift();
+                }
+              }
+              procEma = procEma * 0.9 + (performance.now() - t0) * 0.1;
+              emit = true;
+            }
+          }
+        } else if (now - lastEmit > 30) {
+          // لا فيديو: مستشعرات فقط (مع تصحيح الجاذبية)
+          const dtF = Math.min(0.25, Math.max(0.008, (now - lastT) / 1000));
+          lastT = now;
+          fusion.update({ qSensor: raw, dqVision: null, dt: dtF });
+          emit = true;
+        }
+        void ran;
+        if (emit) {
+          if (track && track.dq) {
+            visionQ = visionQ * 0.7 + track.quality * 0.3;
+            lastVisionOk = now;
+          } else {
+            visionQ *= 0.85;
+          }
+          speed = fusion.speed;
+        }
+        q = fusion.q;
       }
-      prevRaw = raw;
-      lastT = now;
-      smooth = smooth ? quatNlerp(smooth, raw, 0.4) : raw;
 
-      const cfg = cfgRef.current;
-      const ray = cameraForward(smooth);
-      let hit: Vec3 | null = null;
-      if (cfg.mode === 'wall' && cfg.plane) hit = intersectWall(ray, cfg.plane);
-      else if (cfg.mode !== 'manual') hit = intersectFloor(ray, cfg.heightM);
-      const f: FrameData = { q: smooth, ray, hit, depression: depressionDeg(ray), speed, live };
-      frameRef.current = f;
-      setFrame(f);
+      if (emit) {
+        lastEmit = now;
+        const ray = cameraForward(q);
+        let hit: Vec3 | null = null;
+        if (cfg.mode === 'wall' && cfg.plane) hit = intersectWall(ray, cfg.plane);
+        else if (cfg.mode !== 'manual') hit = intersectFloor(ray, cfg.heightM);
+        const vis: FrameData['vision'] =
+          live && videoOk ? (now - lastVisionOk < 700 ? 'vision' : now - lastVisionOk < 4000 ? 'weak' : 'off') : 'off';
+        const f: FrameData = {
+          q,
+          ray,
+          hit,
+          depression: depressionDeg(ray),
+          speed,
+          live,
+          vision: vis,
+          quality: visionQ,
+          locks: anchorsRef.current.map((an) => an.locked),
+        };
+        frameRef.current = f;
+        setFrame(f);
 
-      // عند عدم وصول مستشعرات بعد ثانيتين نُبقي وضع السحب
-      void startT;
+        const cal = calRef.current;
+        if (cal && cal.up0 && cal.samples.length > 0) {
+          const last = cal.samples[cal.samples.length - 1].up;
+          const dot = Math.max(-1, Math.min(1, cal.up0.x * last.x + cal.up0.y * last.y + cal.up0.z * last.z));
+          setFovCal({ tilt: (Math.acos(dot) * 180) / Math.PI, frames: cal.samples.length, still: fusion.speed < 4 });
+        }
 
-      const cap = captureRef.current;
-      if (cap) {
-        cap.samples.push(smooth);
-        const prog = (now - cap.start) / CAPTURE_MS;
-        if (speed > 28) {
-          captureRef.current = null;
-          setCaptureProgress(0);
-          showToast('حافظ على ثبات الهاتف أثناء التثبيت');
-        } else if (prog >= 1) {
-          captureRef.current = null;
-          setCaptureProgress(0);
-          finalizeCapture(quatAverage(cap.samples));
-        } else {
-          setCaptureProgress(prog);
+        const cap = captureRef.current;
+        if (cap) {
+          cap.samples.push(q);
+          const prog = (now - cap.start) / CAPTURE_MS;
+          if (speed > 28) {
+            captureRef.current = null;
+            setCaptureProgress(0);
+            showToast('حافظ على ثبات الهاتف أثناء التثبيت');
+          } else if (prog >= 1) {
+            captureRef.current = null;
+            setCaptureProgress(0);
+            finalizeCapture(quatAverage(cap.samples));
+          } else {
+            setCaptureProgress(prog);
+          }
         }
       }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      stopped = true;
+      cancelAnimationFrame(raf);
+    };
   }, [orientationRef, finalizeCapture, showToast]);
 
   // ───────── التفاعل باللمس ─────────
   const startCapture = () => {
-    if (captureRef.current) return;
+    if (captureRef.current || calRef.current) return;
     captureRef.current = { start: performance.now(), samples: [] };
   };
 
@@ -398,6 +617,7 @@ export const CameraMeasure: React.FC<CameraMeasureProps> = ({ onSaveSuccess, onC
 
   // ───────── إدارة النقاط ─────────
   const resetAll = () => {
+    anchorsRef.current = [];
     setPts([]);
     setPlane(null);
     setWallBase(null);
@@ -410,22 +630,36 @@ export const CameraMeasure: React.FC<CameraMeasureProps> = ({ onSaveSuccess, onC
   };
   const undo = () => {
     if (mode === 'manual') { setManualPts((p) => p.slice(0, -1)); return; }
-    if (pts.length > 0) setPts((p) => p.slice(0, -1));
-    else if (mode === 'wall' && plane) { setPlane(null); setWallBase(null); }
+    if (pts.length > 0) {
+      anchorsRef.current.pop();
+      setPts((p) => p.slice(0, -1));
+    } else if (mode === 'wall' && plane) {
+      anchorsRef.current = [];
+      setPlane(null);
+      setWallBase(null);
+    }
   };
 
   // ───────── الحسابات ─────────
   const { width: W, height: H } = containerSize;
   const cx = W / 2;
   const cy = H / 2;
-  const focal = focalFromFov(W, H, fovDeg);
+  // البعد البؤري الحقيقي للصورة المعروضة: الفيديو يُعرض بـ object-cover فيُقصّ ويُكبَّر،
+  // لذلك يجب حساب البعد البؤري من أبعاد الفيديو الفعلية لا من أبعاد الحاوية، وإلا
+  // انزلقت العلامات فوق الصورة عند تحريك الهاتف (كانت تتحرك أبطأ من المشهد بنحو الثلث).
+  const vEl = videoRef.current;
+  const vidW = streamActive && vEl ? vEl.videoWidth : 0;
+  const vidH = streamActive && vEl ? vEl.videoHeight : 0;
+  const focal = focalFromVideoCover(W, H, vidW, vidH, fovDeg);
   const sensorOk = frame.live;
 
-  const project = (P: Vec3): { x: number; y: number } | null => {
-    const r = projectToScreen(frame.q, P, focal, screenAngle);
+  const toDev = (P: Vec3): Vec3 => rotateVec(quatConj(frame.q), P);
+  const projDev = (d: Vec3): { x: number; y: number } | null => {
+    const r = deviceDirToScreenOffset(d, focal, screenAngle);
     if (!r) return null;
     return { x: cx + r.dx, y: cy + r.dy };
   };
+  const project = (P: Vec3): { x: number; y: number } | null => projDev(toDev(P));
 
   const hit = frame.hit;
   const aimRange = hit ? Math.hypot(hit.x, hit.y) : 0; // المسافة الأفقية عن قدمي المستخدم
@@ -476,54 +710,89 @@ export const CameraMeasure: React.FC<CameraMeasureProps> = ({ onSaveSuccess, onC
     manualPts.length >= 2 ? Math.hypot(manualPts[1].x - manualPts[0].x, manualPts[1].y - manualPts[0].y) : 0;
   const manualMeters = manualPixelDist * calibrationRatio; // صالح فقط عند manualCalibrated
 
-  // ───────── الرسم: مسطرة ليزرية متصلة بالعالم ─────────
+  // ───────── الرسم: خط متصل ثابت في العالم ─────────
+  const NEAR = 0.05;
+
+  /** قصّ مقطع ثلاثي الأبعاد بمستوى الكاميرا الأمامي ثم بإطار الشاشة؛ يعيد نقطتين على الشاشة */
+  const clipSegment = (A: Vec3, B: Vec3): { a: { x: number; y: number }; b: { x: number; y: number }; t0: number; t1: number } | null => {
+    const da = toDev(A);
+    const db = toDev(B);
+    const pa = -da.z;
+    const pb = -db.z;
+    if (pa < NEAR && pb < NEAR) return null;
+    let t0 = 0;
+    let t1 = 1;
+    if (pa < NEAR) t0 = (NEAR - pa) / (pb - pa);
+    else if (pb < NEAR) t1 = (pa - NEAR) / (pa - pb);
+    const at = (t: number): Vec3 => ({ x: da.x + (db.x - da.x) * t, y: da.y + (db.y - da.y) * t, z: da.z + (db.z - da.z) * t });
+    const p0 = projDev(at(t0));
+    const p1 = projDev(at(t1));
+    if (!p0 || !p1) return null;
+    // Liang–Barsky على مستطيل أوسع من الشاشة قليلاً
+    const xmin = -W * 0.5;
+    const xmax = W * 1.5;
+    const ymin = -H * 0.5;
+    const ymax = H * 1.5;
+    let u0 = 0;
+    let u1 = 1;
+    const dx = p1.x - p0.x;
+    const dy = p1.y - p0.y;
+    const pp = [-dx, dx, -dy, dy];
+    const qq = [p0.x - xmin, xmax - p0.x, p0.y - ymin, ymax - p0.y];
+    for (let i = 0; i < 4; i++) {
+      if (Math.abs(pp[i]) < 1e-9) {
+        if (qq[i] < 0) return null;
+      } else {
+        const r = qq[i] / pp[i];
+        if (pp[i] < 0) { if (r > u1) return null; if (r > u0) u0 = r; }
+        else { if (r < u0) return null; if (r < u1) u1 = r; }
+      }
+    }
+    return {
+      a: { x: p0.x + dx * u0, y: p0.y + dy * u0 },
+      b: { x: p0.x + dx * u1, y: p0.y + dy * u1 },
+      t0,
+      t1,
+    };
+  };
+
   const renderTape = (A: Vec3, B: Vec3, key: string, opts: { labelAtMid?: boolean; accent?: string; ticks?: boolean } = {}) => {
     const accent = opts.accent || CYAN;
     const L = dist3(A, B);
     if (L < 0.003) return null;
-    const N = 48;
-    const segs: { x: number; y: number }[][] = [];
-    let cur: { x: number; y: number }[] = [];
-    for (let i = 0; i <= N; i++) {
-      const p = project(lerp3(A, B, i / N));
-      const inView = p && Math.abs(p.x - cx) < W * 1.6 && Math.abs(p.y - cy) < H * 1.6;
-      if (p && inView) cur.push(p);
-      else if (cur.length) { segs.push(cur); cur = []; }
-    }
-    if (cur.length) segs.push(cur);
-    if (segs.length === 0) return null;
+    const seg = clipSegment(A, B);
+    if (!seg) return null;
+    const { a, b } = seg;
 
-    const paths = segs
-      .filter((s) => s.length >= 2)
-      .map((s) => s.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' '));
-
+    // علامات مسطرة خفيفة (للمقاطع المثبتة فقط) — قصيرة ورفيعة كي يبقى الخط متصلاً بوضوح
     const ticks: React.ReactNode[] = [];
-    if (opts.ticks !== false) {
-      const step = chooseTickStep(L, 14);
+    if (opts.ticks) {
+      const step = chooseTickStep(L, 8);
       const count = Math.floor(L / step + 1e-6);
       for (let k = 1; k <= count; k++) {
-        const s = k * step;
-        const P = lerp3(A, B, s / L);
-        const P2 = lerp3(A, B, Math.min(1, (s + step * 0.15) / L));
-        const a = project(P);
-        const b = project(P2);
-        if (!a || !b) continue;
-        if (a.x < -20 || a.x > W + 20 || a.y < -20 || a.y > H + 20) continue;
-        let tx = b.x - a.x;
-        let ty = b.y - a.y;
+        const s0 = k * step;
+        const P = lerp3(A, B, s0 / L);
+        const P2 = lerp3(A, B, Math.min(1, (s0 + step * 0.15) / L));
+        const pa = project(P);
+        const pb = project(P2);
+        if (!pa || !pb) continue;
+        if (pa.x < -20 || pa.x > W + 20 || pa.y < -20 || pa.y > H + 20) continue;
+        let tx = pb.x - pa.x;
+        let ty = pb.y - pa.y;
         const tl = Math.hypot(tx, ty);
         if (tl < 0.01) continue;
         tx /= tl; ty /= tl;
         const nx = -ty;
         const ny = tx;
-        const major = k % 5 === 0 || count <= 6;
-        const len = major ? 11 : 6;
+        const major = k % 5 === 0 || count <= 5;
+        const len = major ? 8 : 4.5;
         ticks.push(
           <g key={`${key}-t${k}`}>
-            <line x1={a.x - nx * len} y1={a.y - ny * len} x2={a.x + nx * len} y2={a.y + ny * len} stroke="#ffffff" strokeWidth={major ? 2 : 1.2} opacity={0.95} />
+            <line x1={pa.x - nx * len} y1={pa.y - ny * len} x2={pa.x + nx * len} y2={pa.y + ny * len} stroke="#02101a" strokeOpacity="0.55" strokeWidth={major ? 3.6 : 3} />
+            <line x1={pa.x - nx * len} y1={pa.y - ny * len} x2={pa.x + nx * len} y2={pa.y + ny * len} stroke="#ffffff" strokeWidth={major ? 1.6 : 1} />
             {major && (
-              <text x={a.x + nx * (len + 10)} y={a.y + ny * (len + 10) + 3.5} textAnchor="middle" fontSize="10.5" fontWeight="800" fill="#e0faff" stroke="#031018" strokeWidth="3" paintOrder="stroke" fontFamily="JetBrains Mono, monospace">
-                {tickLabel(s, unit)}
+              <text x={pa.x + nx * (len + 9)} y={pa.y + ny * (len + 9) + 3.5} textAnchor="middle" fontSize="10" fontWeight="800" fill="#e0faff" stroke="#031018" strokeWidth="3" paintOrder="stroke" fontFamily="JetBrains Mono, monospace">
+                {tickLabel(s0, unit)}
               </text>
             )}
           </g>
@@ -531,11 +800,16 @@ export const CameraMeasure: React.FC<CameraMeasureProps> = ({ onSaveSuccess, onC
       }
     }
 
-    // وسم القيمة في منتصف المقطع
+    // وسم القيمة في منتصف المقطع (الحقيقي إن ظهر، وإلا منتصف الجزء المرئي)
     let label: React.ReactNode = null;
     if (opts.labelAtMid) {
-      const m = project(lerp3(A, B, 0.5));
-      if (m && m.x > 10 && m.x < W - 10 && m.y > 10 && m.y < H - 10) {
+      let m = project(lerp3(A, B, 0.5));
+      const inside = (p: { x: number; y: number } | null) => !!p && p.x > 10 && p.x < W - 10 && p.y > 10 && p.y < H - 10;
+      if (!inside(m)) {
+        const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        m = inside(mid) && Math.hypot(b.x - a.x, b.y - a.y) > 60 ? mid : null;
+      }
+      if (m) {
         const txt = formatLengthText(L, unit);
         const w = txt.length * 9.2 + 22;
         label = (
@@ -549,13 +823,9 @@ export const CameraMeasure: React.FC<CameraMeasureProps> = ({ onSaveSuccess, onC
 
     return (
       <g key={key}>
-        {paths.map((d, i) => (
-          <g key={`${key}-p${i}`}>
-            <path d={d} fill="none" stroke={accent} strokeWidth="9" opacity="0.16" strokeLinecap="round" strokeLinejoin="round" />
-            <path d={d} fill="none" stroke={accent} strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" filter="url(#laserGlow)" />
-            <path d={d} fill="none" stroke="#ffffff" strokeWidth="1.1" opacity="0.9" strokeLinecap="round" strokeLinejoin="round" />
-          </g>
-        ))}
+        <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#02101a" strokeOpacity="0.6" strokeWidth="7" strokeLinecap="round" />
+        <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={accent} strokeWidth="3.6" strokeLinecap="round" />
+        <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#ffffff" strokeOpacity="0.85" strokeWidth="1.2" strokeLinecap="round" />
         {ticks}
         {label}
       </g>
@@ -621,7 +891,7 @@ export const CameraMeasure: React.FC<CameraMeasureProps> = ({ onSaveSuccess, onC
   const sourceText =
     mode === 'manual'
       ? manualCalibrated ? 'المصدر: معايرة بمرجع على مستوى واحد' : 'المصدر: غير معايَر'
-      : 'المصدر: مستشعرات الاتجاه + ارتفاع الهاتف (حساب مثلثي)';
+      : 'المصدر: ميل الهاتف (جاذبية) + تتبع بصري للدوران + ارتفاع الهاتف';
 
   const saveLength = () => {
     let value = 0;
@@ -738,6 +1008,45 @@ export const CameraMeasure: React.FC<CameraMeasureProps> = ({ onSaveSuccess, onC
     if (h < 0.5 || h > 2.5) { showToast(`الارتفاع الناتج غير منطقي (${h.toFixed(2)} م) — تأكد من المسافة والتوجيه`); return; }
     updateHeight(Number(h.toFixed(3)));
     showToast(`✓ تمت المعايرة: ارتفاع الهاتف ${h.toFixed(2)} م`);
+  };
+
+  // ───────── معايرة زاوية الرؤية تلقائياً (إمالة الهاتف مع تتبع بصري) ─────────
+  const startFovCal = () => {
+    if (!frame.live || !streamActive || frame.vision === 'off') {
+      showToast('المعايرة التلقائية تحتاج الكاميرا الخلفية والمستشعرات وأرضية فيها نسيج واضح');
+      return;
+    }
+    calRef.current = { samples: [], up0: null };
+    setFovCal({ tilt: 0, frames: 0, still: true });
+    setSettingsOpen(false);
+  };
+  const cancelFovCal = () => {
+    calRef.current = null;
+    setFovCal(null);
+  };
+  const finishFovCal = () => {
+    const cal = calRef.current;
+    const g = gyroRef.current;
+    if (!cal || !g) { cancelFovCal(); return; }
+    const res = estimateFocalFromSweep(cal.samples, g.w, g.h, g.f, g.screenAngle);
+    if (!res.ok) {
+      showToast('✗ ' + (res.reason || 'تعذّرت المعايرة') + ' — أعد المحاولة');
+      calRef.current = { samples: [], up0: null };
+      setFovCal({ tilt: 0, frames: 0, still: true });
+      return;
+    }
+    const nf = Math.round(fovFromFocal(Math.max(g.w, g.h), res.f) * 10) / 10;
+    if (!(nf >= 45 && nf <= 95)) {
+      showToast('✗ نتيجة غير معقولة — أعد المعايرة على أرضية فيها نسيج واضح');
+      calRef.current = { samples: [], up0: null };
+      setFovCal({ tilt: 0, frames: 0, still: true });
+      return;
+    }
+    setFovDeg(nf);
+    persistProfile({ fov: nf });
+    calRef.current = null;
+    setFovCal(null);
+    showToast(`✓ زاوية الرؤية = ${nf}° (إمالة ${res.tiltRangeDeg.toFixed(0)}°)`);
   };
 
   const confirmManualCalibration = () => {
@@ -877,17 +1186,17 @@ export const CameraMeasure: React.FC<CameraMeasureProps> = ({ onSaveSuccess, onC
     // 1) الشعاع الحي (من قدمي المستخدم/القاعدة نحو نقطة التصويب)
     if (hit) {
       if (lastPt) {
-        overlay.push(renderTape(lastPt, hit, 'live-rubber', { accent: aimColor }));
+        overlay.push(renderTape(lastPt, hit, 'live-rubber', { accent: aimColor, ticks: false }));
       } else if (mode === 'wall' && plane) {
-        overlay.push(renderTape({ x: hit.x, y: hit.y, z: -heightM }, hit, 'live-wall-height', { accent: aimColor }));
+        overlay.push(renderTape({ x: hit.x, y: hit.y, z: -heightM }, hit, 'live-wall-height', { accent: aimColor, ticks: false }));
       } else {
-        overlay.push(renderTape({ x: 0, y: 0, z: -heightM }, hit, 'live-floor', { accent: aimColor }));
+        overlay.push(renderTape({ x: 0, y: 0, z: -heightM }, hit, 'live-floor', { accent: aimColor, ticks: false }));
       }
     }
 
     // 2) المقاطع المثبتة
     for (let i = 1; i < pts.length; i++) {
-      overlay.push(renderTape(pts[i - 1], pts[i], `seg-${i}`, { labelAtMid: true, accent: SKY }));
+      overlay.push(renderTape(pts[i - 1], pts[i], `seg-${i}`, { labelAtMid: true, accent: SKY, ticks: true }));
     }
 
     // 3) تعبئة المضلع الأرضي
@@ -918,11 +1227,22 @@ export const CameraMeasure: React.FC<CameraMeasureProps> = ({ onSaveSuccess, onC
     markers.forEach((m, i) => {
       const p = project(m);
       if (!p || p.x < -30 || p.x > W + 30 || p.y < -30 || p.y > H + 30) return;
+      const locked = !!frame.locks[i];
+      const ring = locked ? '#4ade80' : SKY;
       overlay.push(
-        <g key={`pt-${i}`} transform={`translate(${p.x}, ${p.y})`}>
-          <circle r="15" fill="rgba(14,165,233,0.22)" stroke={SKY} strokeWidth="2.2" />
-          <circle r="4.5" fill={CYAN} />
-          <rect x="14" y="-26" width="24" height="22" rx="7" fill="#0b101b" stroke="#334155" strokeWidth="1.3" />
+        <g key={`pt-${i}`} transform={`translate(${p.x.toFixed(2)}, ${p.y.toFixed(2)})`}>
+          <circle r="11" fill="rgba(2,16,26,0.25)" stroke="#02101a" strokeOpacity="0.6" strokeWidth="4.6" />
+          <circle r="11" fill="none" stroke={ring} strokeWidth="2.2" />
+          <line x1="-19" y1="0" x2="-5" y2="0" stroke="#02101a" strokeOpacity="0.6" strokeWidth="3.6" />
+          <line x1="5" y1="0" x2="19" y2="0" stroke="#02101a" strokeOpacity="0.6" strokeWidth="3.6" />
+          <line x1="0" y1="-19" x2="0" y2="-5" stroke="#02101a" strokeOpacity="0.6" strokeWidth="3.6" />
+          <line x1="0" y1="5" x2="0" y2="19" stroke="#02101a" strokeOpacity="0.6" strokeWidth="3.6" />
+          <line x1="-19" y1="0" x2="-5" y2="0" stroke={ring} strokeWidth="1.5" />
+          <line x1="5" y1="0" x2="19" y2="0" stroke={ring} strokeWidth="1.5" />
+          <line x1="0" y1="-19" x2="0" y2="-5" stroke={ring} strokeWidth="1.5" />
+          <line x1="0" y1="5" x2="0" y2="19" stroke={ring} strokeWidth="1.5" />
+          <circle r="2.6" fill="#ffffff" stroke="#02101a" strokeWidth="1.2" />
+          <rect x="14" y="-26" width="24" height="22" rx="7" fill="#0b101b" stroke={locked ? '#16a34a' : '#334155'} strokeWidth="1.3" />
           <text x="26" y="-10.5" textAnchor="middle" fontSize="12" fontWeight="800" fill="#fff">{m.label}</text>
         </g>
       );
@@ -1130,7 +1450,8 @@ export const CameraMeasure: React.FC<CameraMeasureProps> = ({ onSaveSuccess, onC
 
           {/* دائرة التصويب المركزية (نقطة الليزر) */}
           {mode !== 'manual' && (
-            <g transform={`translate(${cx}, ${cy})`} filter="url(#laserGlow)">
+            <g transform={`translate(${cx}, ${cy})`}>
+              <circle r="26" fill="none" stroke="#02101a" strokeOpacity="0.45" strokeWidth="4.6" />
               <circle r="26" fill="none" stroke={aimColor} strokeWidth="2" strokeDasharray="7 5" opacity="0.9">
                 <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="6s" repeatCount="indefinite" />
               </circle>
@@ -1199,6 +1520,22 @@ export const CameraMeasure: React.FC<CameraMeasureProps> = ({ onSaveSuccess, onC
               <span className="text-slate-600">|</span>
               <span>h {heightM.toFixed(2)}m</span>
             </div>
+            {mode !== 'manual' && frame.live && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#070b14]/90 border border-slate-800 text-[11px] font-bold text-slate-200">
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    frame.vision === 'vision' ? 'bg-emerald-400' : frame.vision === 'weak' ? 'bg-amber-400' : 'bg-slate-500'
+                  }`}
+                />
+                <span>
+                  {frame.vision === 'vision'
+                    ? 'تتبع بصري'
+                    : frame.vision === 'weak'
+                    ? 'تتبع ضعيف'
+                    : 'مستشعرات فقط'}
+                </span>
+              </div>
+            )}
             {!sensorOk && mode !== 'manual' && (
               <button
                 onPointerDown={(e) => e.stopPropagation()}
@@ -1218,6 +1555,42 @@ export const CameraMeasure: React.FC<CameraMeasureProps> = ({ onSaveSuccess, onC
             </div>
           )}
         </div>
+
+        {/* لوحة المعايرة التلقائية لزاوية الرؤية */}
+        {fovCal && (
+          <div
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            className="absolute bottom-14 left-3 right-3 z-20 rounded-2xl bg-[#070b14]/95 border border-emerald-500/40 p-3 text-slate-200 shadow-xl"
+          >
+            <div className="text-xs font-black text-emerald-300 mb-1">معايرة زاوية الرؤية تلقائياً</div>
+            <ol className="text-[11px] text-slate-300 leading-relaxed list-decimal pr-4 space-y-0.5">
+              <li>وجّه الكاميرا نحو أرضية فيها خطوط/بلاط/بقع، وثبّت الهاتف ثانية.</li>
+              <li>أمِل الهاتف ببطء من الأرض القريبة نحو البعيدة بمقدار 30–40° (بلا التفاف جانبي).</li>
+              <li>ثبّت الهاتف ثانية في النهاية ثم اضغط «احسب».</li>
+            </ol>
+            <div className="mt-2 h-2 rounded-full bg-slate-800 overflow-hidden">
+              <div
+                className={`h-full ${fovCal.tilt >= 25 ? 'bg-emerald-400' : 'bg-cyan-400'}`}
+                style={{ width: `${Math.min(100, (fovCal.tilt / 30) * 100)}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1 font-mono">
+              <span>الإمالة: {fovCal.tilt.toFixed(0)}° / 30°</span>
+              <span>{fovCal.still ? 'ثابت' : 'حركة'} • {fovCal.frames} إطار</span>
+            </div>
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={finishFovCal}
+                disabled={fovCal.tilt < 15}
+                className={`flex-1 py-2 rounded-xl text-xs font-black ${fovCal.tilt >= 15 ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-500'}`}
+              >
+                احسب
+              </button>
+              <button onClick={cancelFovCal} className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs">إلغاء</button>
+            </div>
+          </div>
+        )}
 
         {/* تعليمات */}
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 pointer-events-none bg-[#070b14]/90 border border-slate-800 rounded-full px-4 py-1.5 text-[11px] text-slate-300 flex items-center gap-2 whitespace-nowrap max-w-[96%] z-10">
@@ -1422,18 +1795,25 @@ export const CameraMeasure: React.FC<CameraMeasureProps> = ({ onSaveSuccess, onC
             </div>
 
             <div className="mt-3 p-3 bg-[#070b14] rounded-2xl border border-slate-800 text-xs">
-              <label className="text-slate-300 block mb-1 font-bold">زاوية رؤية الكاميرا: {fovDeg}°</label>
+              <label className="text-slate-300 block mb-1 font-bold">زاوية رؤية الكاميرا: {fovDeg.toFixed(1)}°</label>
+              <button
+                onClick={startFovCal}
+                className="w-full mb-2 px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black"
+              >
+                معايرة تلقائية للزاوية (مرة واحدة ≈ 30 ثانية)
+              </button>
               <input
                 type="range"
                 min="50"
                 max="90"
+                step="0.1"
                 value={fovDeg}
                 onChange={(e) => setFovDeg(Number(e.target.value))}
                 onPointerUp={() => persistProfile({ fov: fovDeg })}
                 className="w-full accent-cyan-400"
               />
               <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
-                تؤثر على محاذاة الخطوط والعلامات فوق الصورة فقط ولا تؤثر على دقة القياس. اضبطها حتى تثبت العلامة فوق نفس النقطة الحقيقية أثناء تحريك الهاتف.
+                تحدد كيف يُحوَّل دوران الصورة إلى زاوية، فتؤثر على ثبات العلامات وعلى دقة القياس عند تدوير الهاتف بين نقطتين. الأدق: زر المعايرة التلقائية أعلاه (مرة واحدة لكل هاتف). يدوياً: اضبطها حتى تثبت العلامة فوق نفس النقطة الحقيقية أثناء تحريك الهاتف.
               </p>
             </div>
 

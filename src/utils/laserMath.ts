@@ -107,6 +107,37 @@ export function quatAverage(list: Quat[]): Quat {
   return quatNormalize(sum);
 }
 
+/** رباعي من متجه دوران (rad): الاتجاه = المحور، الطول = الزاوية */
+export function quatFromRotationVector(wx: number, wy: number, wz: number): Quat {
+  const ang = Math.hypot(wx, wy, wz);
+  if (ang < 1e-12) return [wx / 2, wy / 2, wz / 2, 1];
+  const s = Math.sin(ang / 2) / ang;
+  return [wx * s, wy * s, wz * s, Math.cos(ang / 2)];
+}
+
+/** زاوية الدوران الممثَّلة برباعي (درجات، 0..180) */
+export function quatAngleDeg(q: Quat): number {
+  const w = Math.min(1, Math.abs(q[3]));
+  return (2 * Math.acos(w)) / DEG;
+}
+
+/**
+ * أصغر دوران يحوّل الاتجاه a إلى الاتجاه b (كلاهما واحدي)، مع إمكانية أخذ جزء منه.
+ * fraction=1 يطابق b تماماً؛ maxRad يحدّ زاوية الدوران الناتج.
+ */
+export function minimalRotation(a: Vec3, b: Vec3, fraction = 1, maxRad = Math.PI): Quat {
+  const cx = a.y * b.z - a.z * b.y;
+  const cy = a.z * b.x - a.x * b.z;
+  const cz = a.x * b.y - a.y * b.x;
+  const s = Math.hypot(cx, cy, cz);
+  const dot = a.x * b.x + a.y * b.y + a.z * b.z;
+  if (s < 1e-12) return [0, 0, 0, 1];
+  let ang = Math.atan2(s, dot) * fraction;
+  if (ang > maxRad) ang = maxRad;
+  const k = Math.sin(ang / 2) / s;
+  return [cx * k, cy * k, cz * k, Math.cos(ang / 2)];
+}
+
 // ───────────────────────── الأشعة والإسقاط ─────────────────────────
 
 /** تحويل إزاحة بكسل عن مركز الشاشة إلى اتجاه في إطار الجهاز (واحدي) */
@@ -154,14 +185,15 @@ export function rayFromScreen(
   return rotateVec(q, screenOffsetToDevice(dx, dy, focalPx, screenAngle));
 }
 
-/** إسقاط نقطة عالمية (نسبة للكاميرا) إلى إزاحة بكسل عن مركز الشاشة */
-export function projectToScreen(
-  q: Quat,
-  p: Vec3,
+/**
+ * إسقاط اتجاه في إطار الجهاز إلى إزاحة بكسل عن مركز الشاشة (عكس screenOffsetToDevice).
+ * الإحداثيات: x يمين، y أعلى، z خارج الشاشة؛ الكاميرا الخلفية تنظر نحو −z.
+ */
+export function deviceDirToScreenOffset(
+  d: Vec3,
   focalPx: number,
   screenAngle = 0
 ): { dx: number; dy: number; depth: number } | null {
-  const d = rotateVec(quatConj(q), p);
   const depth = -d.z;
   if (depth <= 0.02) return null;
   const u = (focalPx * d.x) / depth;
@@ -188,10 +220,37 @@ export function projectToScreen(
   return { dx, dy, depth };
 }
 
+/** إسقاط نقطة عالمية (نسبة للكاميرا) إلى إزاحة بكسل عن مركز الشاشة */
+export function projectToScreen(
+  q: Quat,
+  p: Vec3,
+  focalPx: number,
+  screenAngle = 0
+): { dx: number; dy: number; depth: number } | null {
+  return deviceDirToScreenOffset(rotateVec(quatConj(q), p), focalPx, screenAngle);
+}
+
 /** البعد البؤري بالبكسل من زاوية الرؤية على المحور الأطول للشاشة */
 export function focalFromFov(widthPx: number, heightPx: number, fovDeg: number): number {
   const longSide = Math.max(widthPx, heightPx);
   return longSide / 2 / Math.tan((fovDeg * DEG) / 2);
+}
+
+/**
+ * البعد البؤري بوحدة بكسلات الحاوية عندما يُعرض الفيديو بنمط object-cover (يُكبَّر ويُقصّ):
+ * زاوية الرؤية تخصّ ضلع الفيديو الأطول، والمقياس = max(W/vw, H/vh). استعمال أبعاد الحاوية
+ * بدل الفيديو يجعل العلامات تنزلق فوق الصورة عند تحريك الهاتف.
+ */
+export function focalFromVideoCover(
+  containerW: number,
+  containerH: number,
+  videoW: number,
+  videoH: number,
+  fovDeg: number
+): number {
+  if (!(videoW > 0 && videoH > 0)) return focalFromFov(containerW, containerH, fovDeg);
+  const cover = Math.max(containerW / videoW, containerH / videoH);
+  return (Math.max(videoW, videoH) / 2 / Math.tan((fovDeg * DEG) / 2)) * cover;
 }
 
 // ───────────────────────── التقاطعات ─────────────────────────

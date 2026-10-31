@@ -14,7 +14,6 @@ import { ProjectManager } from './components/ProjectManager';
 import { VerificationHub } from './components/VerificationHub';
 import { NewProjectModal } from './components/NewProjectModal';
 import { PWAInstallModal } from './components/PWAInstallModal';
-import { SourceCodeModal } from './components/SourceCodeModal';
 import { ContactModal } from './components/ContactModal';
 import { ToolsKit } from './components/ToolsKit';
 import { usePWAInstall } from './hooks/usePWAInstall';
@@ -31,7 +30,6 @@ export default function App() {
 
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
   const [isPWAInfoOpen, setIsPWAInfoOpen] = useState(false);
-  const [isSourceModalOpen, setIsSourceModalOpen] = useState(false);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
 
   const { isInstallable, install } = usePWAInstall();
@@ -89,7 +87,6 @@ export default function App() {
         onSelectProject={handleSelectProject}
         onOpenNewProjectModal={() => setIsNewProjectModalOpen(true)}
         onOpenPWAInfo={() => setIsPWAInfoOpen(true)}
-        onOpenSourceModal={() => setIsSourceModalOpen(true)}
         onOpenContactModal={() => setIsContactModalOpen(true)}
         lang={lang}
         onLanguageChange={setLang}
@@ -145,7 +142,6 @@ export default function App() {
             projects={projects}
             onNavigate={(tab) => setActiveTab(tab)}
             onOpenNewProjectModal={() => setIsNewProjectModalOpen(true)}
-            onOpenSourceModal={() => setIsSourceModalOpen(true)}
             onOpenContactModal={() => setIsContactModalOpen(true)}
             lang={lang}
           />
@@ -193,7 +189,6 @@ export default function App() {
             onSelectProject={handleSelectProject}
             onRefreshProjects={refreshProjects}
             onOpenNewProjectModal={() => setIsNewProjectModalOpen(true)}
-            onOpenSourceModal={() => setIsSourceModalOpen(true)}
           />
         )}
 
@@ -217,11 +212,6 @@ export default function App() {
         onClose={() => setIsPWAInfoOpen(false)}
         onTriggerInstall={install}
         isInstallable={isInstallable}
-      />
-
-      <SourceCodeModal
-        isOpen={isSourceModalOpen}
-        onClose={() => setIsSourceModalOpen(false)}
       />
 
       <ContactModal

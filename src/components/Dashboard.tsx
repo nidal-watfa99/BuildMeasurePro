@@ -17,7 +17,6 @@ import {
   Ruler, 
   Clock, 
   ChevronLeft, 
-  Download, 
   Zap, 
   Sparkles, 
   Layers, 
@@ -32,7 +31,6 @@ interface DashboardProps {
   projects: Project[];
   onNavigate: (tab: ActiveTab) => void;
   onOpenNewProjectModal: () => void;
-  onOpenSourceModal: () => void;
   onOpenContactModal: () => void;
   lang?: Language;
 }
@@ -42,7 +40,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
   projects,
   onNavigate,
   onOpenNewProjectModal,
-  onOpenSourceModal,
   onOpenContactModal,
   lang = 'ar',
 }) => {
@@ -190,45 +187,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
 
-        {/* Source Code ZIP Download Card (Digital Aesthetic) */}
+        {/* بطاقة التواصل مع المطور */}
         <div className="bg-[#0b101b] border border-cyan-500/30 rounded-3xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
           <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-black shadow-lg shrink-0">
-              <Download className="w-6 h-6 stroke-[2]" />
+            <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-lg shrink-0">
+              <Mail className="w-6 h-6 stroke-[2]" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-extrabold text-sm sm:text-base text-white">
-                  حزمة الكود المصدري الكاملة للمشروع (BuildMeasure Pro ZIP)
-                </h3>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                  توليد محلي 100%
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 mt-1">
-                جميع ملفات المشروع الـ 34 والإعدادات والتوثيق محزومة ومضغوطة محلياً بذاكرة المتصفح عبر JSZip بدون كوكيز أو وسيط خارجي.
-              </p>
+              <h3 className="font-extrabold text-sm sm:text-base text-white">ملاحظات وبلاغات</h3>
+              <p className="text-xs text-slate-400 mt-1">أرسل ملاحظاتك أو بلاغ مشكلة إلى المطور.</p>
             </div>
           </div>
-
-          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-            <button
-              onClick={onOpenContactModal}
-              className="flex items-center justify-center gap-1.5 px-4 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-bold border border-slate-800 transition"
-              title="تواصل مع المطور"
-            >
-              <Mail className="w-4 h-4 text-cyan-400" />
-              <span>ملاحظات للمطور</span>
-            </button>
-
-            <button
-              onClick={onOpenSourceModal}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-cyan-500/25 transition active:scale-95 cursor-pointer"
-            >
-              <Download className="w-4 h-4 stroke-[3]" />
-              <span>تنزيل ملف ZIP والكود</span>
-            </button>
-          </div>
+          <button
+            onClick={onOpenContactModal}
+            className="flex items-center justify-center gap-1.5 px-4 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-bold border border-slate-800 transition w-full sm:w-auto shrink-0"
+            title="تواصل مع المطور"
+          >
+            <Mail className="w-4 h-4 text-cyan-400" />
+            <span>ملاحظات للمطور</span>
+          </button>
         </div>
 
         {/* 8 Core Engineering Tools Grid (Styled like user website cards) */}

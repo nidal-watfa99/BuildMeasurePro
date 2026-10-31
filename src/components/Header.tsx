@@ -5,7 +5,6 @@ import { useDeviceSensors } from '../hooks/useDeviceSensors';
 import { Language, translations } from '../i18n';
 import { 
   Ruler, 
-  Download, 
   Smartphone, 
   FolderGit2, 
   Compass, 
@@ -24,7 +23,6 @@ interface HeaderProps {
   onSelectProject: (id: string) => void;
   onOpenNewProjectModal: () => void;
   onOpenPWAInfo: () => void;
-  onOpenSourceModal: () => void;
   onOpenContactModal: () => void;
   lang: Language;
   onLanguageChange: (lang: Language) => void;
@@ -36,7 +34,6 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectProject,
   onOpenNewProjectModal,
   onOpenPWAInfo,
-  onOpenSourceModal,
   onOpenContactModal,
   lang,
   onLanguageChange,
@@ -177,16 +174,6 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Mail className="w-3.5 h-3.5 text-cyan-400" />
             <span className="hidden lg:inline">{t.contactDev}</span>
-          </button>
-
-          {/* Download Source Code ZIP */}
-          <button
-            onClick={onOpenSourceModal}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black rounded-xl text-xs shadow-md shadow-cyan-500/20 transition active:scale-95 cursor-pointer"
-            title="تحميل كود المشروع المصدري كاملاً (ZIP)"
-          >
-            <Download className="w-3.5 h-3.5 stroke-[2.5]" />
-            <span className="whitespace-nowrap">{t.downloadSource}</span>
           </button>
 
           {/* PWA Mobile Install */}
